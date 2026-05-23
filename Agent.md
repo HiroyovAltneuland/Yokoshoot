@@ -90,17 +90,21 @@ The player character is:
 ### Player Shot
 
 - The normal shot is a thrown small knife.
+- The normal shot fires 3 times per second.
 - The shot should travel from the player toward the right side of the screen.
 - The shot visual should read as a small blade or throwing knife.
 
 ### Charged Dash Attack
 
-- Holding the shot key charges the attack.
-- Releasing the shot key after charging for 1.5 seconds triggers a dash attack.
-- During the dash, the protagonist becomes invincible and rushes to the right edge of the screen.
-- After reaching the right edge, invincibility ends and the protagonist returns to the original position.
+- Holding Space charges the attack.
+- After holding Space for at least 1 second, show a charge effect around the protagonist.
+- Releasing Space after charging for at least 1 second triggers a dash attack.
+- During the dash and return, the protagonist is invincible, cannot fire shots, and flickers 2 times per second.
+- During the dash, the protagonist rushes to the right edge of the screen at 3 times normal movement speed, leaving a visible trail.
+- A charged dash can damage each target it collides with once, dealing 9 normal-shot hits of damage.
+- After reaching the right edge, the protagonist returns to the original position at normal movement speed.
 - The original position should be remembered from the point where the charged dash began.
-- If the shot key is released before 1.5 seconds, fire the normal small-knife shot instead.
+- If Space is released before 1 second, fire the normal small-knife shot instead.
 
 ## Boss And Faction Direction
 
@@ -115,7 +119,7 @@ The player character is:
 ## Stage 1 Gameplay Direction
 
 - Stage 1 is playable first and should establish the core shooting feel.
-- The protagonist's normal attack fires 2 times per second.
+- The protagonist's normal attack fires 3 times per second.
 - Stage 1 enemies mainly attack with tennis balls.
 - Regular enemy shot frequency should be about 75% of the initial prototype frequency.
 - During regular enemies 1, tennis ball attacks should be player-aimed shots and forward 2-way shots at a 3:1 ratio.
