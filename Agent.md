@@ -56,10 +56,10 @@ There are 6 stages:
 
 - Stage 1: Tennis club
 - Stage 2: Public morals committee
-- Stage 3
-- Stage 4
-- Stage 5
-- Stage 6
+- Stage 3: Rival bob-cut kendo girl
+- Stage 4: Yakuza underlings serving the boss
+- Stage 5: Student council president in a white sailor uniform
+- Stage 6: School chairperson
 
 Each stage should contain:
 
@@ -101,6 +101,23 @@ The player character is:
 - After reaching the right edge, invincibility ends and the protagonist returns to the original position.
 - The original position should be remembered from the point where the charged dash began.
 - If the shot key is released before 1.5 seconds, fire the normal small-knife shot instead.
+
+## Boss And Faction Direction
+
+- Stage 1 boss faction: Tennis club. Use tennis rackets, tennis balls, court lines, and club uniforms as visual motifs.
+- Stage 2 boss faction: Public morals committee. Use armbands, inspection notebooks, discipline signs, and strict school-rule imagery.
+- Stage 3 boss: A rival girl swordswoman with a bob haircut and kendo uniform. She should feel like the protagonist's personal mirror and technical equal.
+- Stage 4 boss faction: Yakuza underlings serving the boss. Keep the school setting by framing them as intruders or outside enforcers around the school grounds.
+- Stage 5 boss: The student council president, a girl in a white sailor uniform. She should feel elegant, commanding, and ideologically opposed to the protagonist.
+- Stage 6 boss: The school chairperson. The final enemy should feel like the hidden authority behind the school conflict.
+
+## Title Art Direction
+
+- Title logo text: `学園ブレード`.
+- Title art should center on 黒羽 凛, the black sailor-uniform protagonist with long hair and small knives.
+- The image should suggest the stage hierarchy: tennis club, public morals committee, rival kendo girl, yakuza underlings, white-sailor student council president, and the school chairperson.
+- The background should clearly read as a Japanese high school after dark or at dramatic sunset.
+- The tone should be stylish school action, not military sci-fi.
 
 ## Dialogue Direction
 
