@@ -1,10 +1,14 @@
-# Yokoshoot Agent Guide
+# Gakuen Blade Agent Guide
 
 ## Overview
 
-Yokoshoot is a browser-playable side-scrolling shooter.
+Gakuen Blade is a browser-playable side-scrolling shooter.
 
 All in-game text shown to players must be Japanese.
+
+The Japanese game title is `学園ブレード`.
+
+The overall stage setting should evoke a Japanese high school.
 
 The game flow is:
 
@@ -50,8 +54,8 @@ The in-game section has 6 stages. Each stage follows the same structure:
 
 There are 6 stages:
 
-- Stage 1
-- Stage 2
+- Stage 1: Tennis club
+- Stage 2: Public morals committee
 - Stage 3
 - Stage 4
 - Stage 5
@@ -65,6 +69,38 @@ Each stage should contain:
 - Regular enemy wave 2
 - Pre-boss dialogue
 - Boss battle
+
+## Setting Direction
+
+- The game takes place in and around a Japanese high school.
+- Stage backgrounds, enemies, dialogue, and UI copy should reinforce the school setting.
+- Use locations such as classrooms, corridors, gymnasiums, courtyards, rooftops, club rooms, and school gates when expanding stage concepts.
+- Enemy groups should feel like exaggerated school factions rather than military units.
+
+## Player Character
+
+Suggested protagonist name: `黒羽 凛` (`くろは りん`).
+
+The player character is:
+
+- A long-haired girl in a black sailor uniform
+- Spawned at the vertical center near the left edge of the screen
+- A close-to-mid-range knife fighter with burst movement
+
+### Player Shot
+
+- The normal shot is a thrown small knife.
+- The shot should travel from the player toward the right side of the screen.
+- The shot visual should read as a small blade or throwing knife.
+
+### Charged Dash Attack
+
+- Holding the shot key charges the attack.
+- Releasing the shot key after charging for 1.5 seconds triggers a dash attack.
+- During the dash, the protagonist becomes invincible and rushes to the right edge of the screen.
+- After reaching the right edge, invincibility ends and the protagonist returns to the original position.
+- The original position should be remembered from the point where the charged dash began.
+- If the shot key is released before 1.5 seconds, fire the normal small-knife shot instead.
 
 ## Dialogue Direction
 
