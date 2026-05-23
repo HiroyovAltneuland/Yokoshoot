@@ -118,13 +118,15 @@ The player character is:
 - The protagonist's normal attack fires 2 times per second.
 - Stage 1 enemies mainly attack with tennis balls.
 - Regular enemy shot frequency should be about 75% of the initial prototype frequency.
+- During regular enemies 1, tennis ball attacks should be player-aimed shots and forward 2-way shots at a 3:1 ratio.
+- During regular enemies 2, tennis ball attacks should be player-aimed shots and 8-way radial shots at a 3:1 ratio.
 - Regular enemies are defeated by 1 normal attack hit.
 - Stage 1 should move to the mid-boss or boss only after the current regular enemies are defeated or leave the screen, and their remaining tennis balls are gone.
-- The mid-boss is defeated by 30 normal attack hits.
+- The mid-boss is defeated by 20 normal attack hits.
 - Stage 1 mid-boss dialogue should be a single line and should advance automatically without pressing a button.
-- The boss changes attack behavior after taking 20 hits.
-- The boss is defeated after taking 40 total hits.
-- Target play-time feel: regular enemies 1 for about 15 seconds, mid-boss for about 15 seconds, regular enemies 2 for about 10 seconds, boss for about 30 seconds.
+- The boss changes attack behavior after taking 10 hits.
+- The boss is defeated after taking 25 total hits.
+- Target play-time feel: regular enemies 1 for about 15 seconds, mid-boss for about 15 seconds, regular enemies 2 for about 7 seconds, boss for about 30 seconds.
 
 ## Title Art Direction
 
