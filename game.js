@@ -15,6 +15,7 @@
   const HEIGHT = canvas.height;
   const PLAYER_FIRE_INTERVAL = 0.5;
   const PLAYER_RADIUS = 15;
+  const DIALOGUE_AUTO_SECONDS = 2.4;
 
   const phasePlan = {
     wave1: 15,
@@ -42,13 +43,13 @@
     boss: null,
     dialogue: [],
     dialogueIndex: 0,
+    dialogueTimer: 0,
     message: "",
   };
 
   const dialogues = {
     midBoss: [
       { speaker: "朝比奈 つばめ", line: "ここから先はテニス部のコートよ。無断で通すわけないでしょ。" },
-      { speaker: "黒羽 凛", line: "なら、ネットごと切り抜ける。" },
     ],
     boss: [
       { speaker: "朝比奈 つばめ", line: "まだ立ってるなんてね。次は本気のスマッシュで沈める。" },
@@ -87,12 +88,14 @@
     state.mode = "dialogue";
     state.dialogue = dialogues[kind].map((entry) => ({ ...entry, nextPhase }));
     state.dialogueIndex = 0;
+    state.dialogueTimer = 0;
     showDialogueLine();
   }
 
   function showDialogueLine() {
     const entry = state.dialogue[state.dialogueIndex];
     dialogueBox.hidden = false;
+    dialogueNext.hidden = true;
     speakerName.textContent = entry.speaker;
     dialogueLine.textContent = entry.line;
   }
@@ -107,6 +110,15 @@
     dialogueBox.hidden = true;
     state.mode = "playing";
     setPhase(nextPhase);
+  }
+
+  function updateDialogue(dt) {
+    if (state.mode !== "dialogue") return;
+    state.dialogueTimer += dt;
+    if (state.dialogueTimer >= DIALOGUE_AUTO_SECONDS) {
+      state.dialogueTimer = 0;
+      advanceDialogue();
+    }
   }
 
   function setPhase(phase) {
@@ -205,6 +217,10 @@
   }
 
   function update(dt) {
+    if (state.mode === "dialogue") {
+      updateDialogue(dt);
+      return;
+    }
     if (state.mode !== "playing") return;
     state.elapsed += dt;
     state.phaseTime += dt;
@@ -241,13 +257,17 @@
   function updatePhase(dt) {
     if (state.phase === "wave1") {
       if (state.phaseTime < phasePlan.wave1) spawnWaveEnemies(dt, 1.35);
-      if (state.phaseTime >= phasePlan.wave1) startDialogue("midBoss", "midBoss");
+      if (state.phaseTime >= phasePlan.wave1 && isStageClearForBoss()) startDialogue("midBoss", "midBoss");
     } else if (state.phase === "wave2") {
       if (state.phaseTime < phasePlan.wave2) spawnWaveEnemies(dt, 1.05);
-      if (state.phaseTime >= phasePlan.wave2) startDialogue("boss", "boss");
+      if (state.phaseTime >= phasePlan.wave2 && isStageClearForBoss()) startDialogue("boss", "boss");
     } else if (state.phase === "midBoss" || state.phase === "boss") {
       bossShoot(dt);
     }
+  }
+
+  function isStageClearForBoss() {
+    return state.enemies.length === 0 && state.enemyBullets.length === 0;
   }
 
   function spawnWaveEnemies(dt, interval) {
@@ -267,7 +287,7 @@
       enemy.x += enemy.vx * dt;
       enemy.fireTimer -= dt;
       if (enemy.fireTimer <= 0) {
-        enemy.fireTimer = 1.15 + Math.random() * 0.65;
+        enemy.fireTimer = 1.55 + Math.random() * 0.9;
         enemyShoot(enemy, 230);
       }
     }
