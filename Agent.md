@@ -119,7 +119,10 @@ The player character is:
 - Stage 1 enemies mainly attack with tennis balls.
 - Regular enemy shot frequency should be about 75% of the initial prototype frequency.
 - During regular enemies 1, tennis ball attacks should be player-aimed shots and forward 2-way shots at a 3:1 ratio.
+- The forward 2-way shot uses 30 degrees and 330 degrees, where 0 degrees means left and angles increase clockwise.
 - During regular enemies 2, tennis ball attacks should be player-aimed shots and 8-way radial shots at a 3:1 ratio.
+- The 8-way radial shot uses 0, 45, 90, 135, 180, 225, 270, and 315 degrees, where 0 degrees means left and angles increase clockwise.
+- Regular enemies that fire 2-way or 8-way shots should immediately change direction and move right.
 - Regular enemies are defeated by 1 normal attack hit.
 - Stage 1 should move to the mid-boss or boss only after the current regular enemies are defeated or leave the screen, and their remaining tennis balls are gone.
 - The mid-boss is defeated by 20 normal attack hits.

@@ -189,28 +189,25 @@
     });
   }
 
+  function tennisBallAtAngle(enemy, speed, degrees) {
+    const radians = (degrees * Math.PI) / 180;
+    state.enemyBullets.push({
+      x: enemy.x - 16,
+      y: enemy.y,
+      vx: -Math.cos(radians) * speed,
+      vy: Math.sin(radians) * speed,
+      r: 8,
+    });
+  }
+
   function shootStraightTwoWay(enemy, speed) {
-    for (const vy of [-70, 70]) {
-      state.enemyBullets.push({
-        x: enemy.x - 16,
-        y: enemy.y,
-        vx: -speed,
-        vy,
-        r: 8,
-      });
-    }
+    tennisBallAtAngle(enemy, speed, 30);
+    tennisBallAtAngle(enemy, speed, 330);
   }
 
   function shootEightWay(enemy, speed) {
-    for (let i = 0; i < 8; i += 1) {
-      const angle = (Math.PI * 2 * i) / 8;
-      state.enemyBullets.push({
-        x: enemy.x,
-        y: enemy.y,
-        vx: Math.cos(angle) * speed,
-        vy: Math.sin(angle) * speed,
-        r: 8,
-      });
+    for (const degrees of [0, 45, 90, 135, 180, 225, 270, 315]) {
+      tennisBallAtAngle(enemy, speed, degrees);
     }
   }
 
@@ -220,8 +217,10 @@
       enemyShoot(enemy, 230);
     } else if (enemy.wave === "wave2") {
       shootEightWay(enemy, 175);
+      enemy.vx = Math.abs(enemy.vx);
     } else {
       shootStraightTwoWay(enemy, 230);
+      enemy.vx = Math.abs(enemy.vx);
     }
   }
 
@@ -328,7 +327,7 @@
         regularEnemyShoot(enemy);
       }
     }
-    state.enemies = state.enemies.filter((enemy) => enemy.x > -40);
+    state.enemies = state.enemies.filter((enemy) => enemy.x > -40 && enemy.x < WIDTH + 50);
   }
 
   function updateEnemyBullets(dt) {
