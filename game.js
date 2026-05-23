@@ -10,6 +10,7 @@
   const speakerName = document.getElementById("speaker-name");
   const dialogueLine = document.getElementById("dialogue-line");
   const dialogueNext = document.getElementById("dialogue-next");
+  const enemyPortrait = document.getElementById("enemy-portrait");
 
   const WIDTH = canvas.width;
   const HEIGHT = canvas.height;
@@ -112,6 +113,9 @@
 
   function startDialogue(kind, nextPhase) {
     state.mode = "dialogue";
+    enemyPortrait.src =
+      kind === "boss" ? "assets/dialogue-tsubame-boss.png" : "assets/dialogue-tsubame-midboss.png";
+    enemyPortrait.alt = "朝比奈 つばめ";
     state.dialogue = dialogues[kind].map((entry) => ({ ...entry, nextPhase }));
     state.dialogueIndex = 0;
     state.dialogueTimer = 0;

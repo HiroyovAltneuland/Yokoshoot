@@ -21,13 +21,19 @@
     <main id="game-screen" class="game-screen" hidden>
       <canvas id="game-canvas" width="960" height="540" aria-label="学園ブレード 1面"></canvas>
       <div id="dialogue-box" class="dialogue-box" hidden>
-        <div class="portrait protagonist">黒羽<br>凛</div>
+        <div class="portrait protagonist">
+          <img src="assets/dialogue-rin.png" alt="黒羽 凛">
+          <span>黒羽<br>凛</span>
+        </div>
         <div class="dialogue-text">
           <p id="speaker-name" class="speaker-name"></p>
           <p id="dialogue-line" class="dialogue-line"></p>
           <button id="dialogue-next" type="button" class="dialogue-next">進む</button>
         </div>
-        <div class="portrait rival">朝比奈<br>つばめ</div>
+        <div class="portrait rival">
+          <img id="enemy-portrait" src="assets/dialogue-tsubame-midboss.png" alt="朝比奈 つばめ">
+          <span>朝比奈<br>つばめ</span>
+        </div>
       </div>
     </main>
     <script src="game.js"></script>
