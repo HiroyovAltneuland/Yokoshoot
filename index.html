@@ -7,7 +7,7 @@
     <link rel="stylesheet" href="styles.css">
   </head>
   <body>
-    <main class="title-screen">
+    <main id="title-screen" class="title-screen">
       <img class="title-art" src="assets/title-art.png" alt="">
       <section class="title-panel" aria-labelledby="game-title">
         <p class="eyebrow">横スクロールシューティング</p>
@@ -15,8 +15,21 @@
           <img src="assets/title-logo-transparent.png" alt="学園ブレード">
         </h1>
         <p class="lead">御門院家が支配する学園で、黒羽 凛は六つの勢力に小刀を向ける。</p>
-        <button type="button" class="start-button">ゲーム開始</button>
+        <button id="start-button" type="button" class="start-button">ゲーム開始</button>
       </section>
     </main>
+    <main id="game-screen" class="game-screen" hidden>
+      <canvas id="game-canvas" width="960" height="540" aria-label="学園ブレード 1面"></canvas>
+      <div id="dialogue-box" class="dialogue-box" hidden>
+        <div class="portrait protagonist">黒羽<br>凛</div>
+        <div class="dialogue-text">
+          <p id="speaker-name" class="speaker-name"></p>
+          <p id="dialogue-line" class="dialogue-line"></p>
+          <button id="dialogue-next" type="button" class="dialogue-next">進む</button>
+        </div>
+        <div class="portrait rival">朝比奈<br>つばめ</div>
+      </div>
+    </main>
+    <script src="game.js"></script>
   </body>
 </html>

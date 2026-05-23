@@ -17,6 +17,10 @@ body {
   background: #050712;
 }
 
+[hidden] {
+  display: none !important;
+}
+
 .title-screen {
   position: relative;
   min-height: 100vh;
@@ -120,6 +124,95 @@ h1 img {
   outline-offset: 4px;
 }
 
+.game-screen {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  background:
+    linear-gradient(180deg, rgba(255, 154, 78, 0.28), rgba(7, 10, 24, 0.42)),
+    #101522;
+}
+
+#game-canvas {
+  display: block;
+  width: 100vw;
+  height: 100vh;
+  background: #111827;
+}
+
+.dialogue-box {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: grid;
+  grid-template-columns: minmax(120px, 24vw) minmax(260px, 1fr) minmax(120px, 24vw);
+  gap: 24px;
+  align-items: end;
+  padding: 32px;
+  background: linear-gradient(180deg, rgba(5, 7, 18, 0.18), rgba(5, 7, 18, 0.82));
+}
+
+.portrait {
+  display: grid;
+  min-height: min(54vh, 420px);
+  place-items: center;
+  border: 2px solid rgba(255, 255, 255, 0.28);
+  border-radius: 8px;
+  color: #f5f7ff;
+  font-size: clamp(28px, 4vw, 54px);
+  font-weight: 900;
+  line-height: 1.2;
+  text-align: center;
+  text-shadow: 0 4px 18px rgba(0, 0, 0, 0.8);
+}
+
+.protagonist {
+  background: linear-gradient(160deg, rgba(12, 16, 28, 0.92), rgba(68, 17, 38, 0.76));
+}
+
+.rival {
+  background: linear-gradient(160deg, rgba(255, 244, 212, 0.24), rgba(46, 114, 58, 0.78));
+}
+
+.dialogue-text {
+  align-self: end;
+  min-height: 160px;
+  padding: 24px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 8px;
+  background: rgba(5, 7, 18, 0.88);
+  box-shadow: 0 20px 70px rgba(0, 0, 0, 0.44);
+}
+
+.speaker-name {
+  margin: 0 0 12px;
+  color: #7ee8ff;
+  font-size: 18px;
+  font-weight: 800;
+}
+
+.dialogue-line {
+  min-height: 56px;
+  margin: 0 0 20px;
+  color: #f5f7ff;
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1.7;
+}
+
+.dialogue-next {
+  min-width: 120px;
+  min-height: 42px;
+  border: 0;
+  border-radius: 6px;
+  background: #f8d84a;
+  color: #14120a;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 800;
+}
+
 @media (max-width: 560px) {
   .title-panel {
     padding: 20px;
@@ -145,6 +238,27 @@ h1 img {
   .lead {
     bottom: 5%;
     width: calc(100% - 32px);
+    font-size: 17px;
+  }
+
+  .dialogue-box {
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    padding: 16px;
+  }
+
+  .dialogue-text {
+    grid-column: 1 / -1;
+    order: 3;
+    padding: 18px;
+  }
+
+  .portrait {
+    min-height: 34vh;
+    font-size: 28px;
+  }
+
+  .dialogue-line {
     font-size: 17px;
   }
 }
