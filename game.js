@@ -40,6 +40,7 @@
     score: 0,
     keys: new Set(),
     spawnTimer: 0,
+    waveSpawnCounts: { wave1: 0, wave2: 0 },
     player: makePlayer(),
     knives: [],
     enemies: [],
@@ -88,6 +89,7 @@
     state.score = 0;
     state.keys.clear();
     state.spawnTimer = 0.25;
+    state.waveSpawnCounts = { wave1: 0, wave2: 0 };
     state.player = makePlayer();
     state.player.invincible = 1.5;
     state.knives = [];
@@ -150,6 +152,7 @@
     state.enemies = [];
     state.enemyBullets = [];
     state.spawnTimer = 0.25;
+    if (phase === "wave1" || phase === "wave2") state.waveSpawnCounts[phase] = 0;
     if (phase === "midBoss") {
       state.boss = makeBoss("朝比奈 つばめ", phasePlan.midBossTarget, 0);
       state.message = "中ボス 朝比奈つばめ";
@@ -188,6 +191,7 @@
 
   function spawnEnemy() {
     const y = 76 + Math.random() * (HEIGHT - 152);
+    state.waveSpawnCounts[state.phase] += 1;
     state.enemies.push({
       id: state.nextEnemyId,
       x: WIDTH + 28,
@@ -196,6 +200,7 @@
       r: 18,
       fireTimer: 0.45 + Math.random() * 0.8,
       wave: state.phase,
+      spawnIndex: state.waveSpawnCounts[state.phase],
     });
     state.nextEnemyId += 1;
   }
@@ -236,6 +241,10 @@
   }
 
   function regularEnemyShoot(enemy) {
+    if (enemy.spawnIndex <= 3) {
+      enemyShoot(enemy, 230);
+      return;
+    }
     const useSpecial = Math.random() < 0.25;
     if (!useSpecial) {
       enemyShoot(enemy, 230);
