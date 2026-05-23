@@ -201,6 +201,7 @@
       fireTimer: 0.45 + Math.random() * 0.8,
       wave: state.phase,
       spawnIndex: state.waveSpawnCounts[state.phase],
+      usedSpecial: false,
     });
     state.nextEnemyId += 1;
   }
@@ -245,14 +246,17 @@
       enemyShoot(enemy, 230);
       return;
     }
+    const canUseSpecial = !enemy.usedSpecial && enemy.x >= WIDTH / 2;
     const useSpecial = Math.random() < 0.25;
-    if (!useSpecial) {
+    if (!canUseSpecial || !useSpecial) {
       enemyShoot(enemy, 230);
     } else if (enemy.wave === "wave2") {
       shootEightWay(enemy, 175);
+      enemy.usedSpecial = true;
       enemy.vx = Math.abs(enemy.vx);
     } else {
       shootStraightTwoWay(enemy, 230);
+      enemy.usedSpecial = true;
       enemy.vx = Math.abs(enemy.vx);
     }
   }
