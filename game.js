@@ -13,9 +13,13 @@
 
   const WIDTH = canvas.width;
   const HEIGHT = canvas.height;
-  const PLAYER_FIRE_INTERVAL = 0.5;
+  const PLAYER_FIRE_INTERVAL = 1 / 3;
   const PLAYER_RADIUS = 15;
   const DIALOGUE_AUTO_SECONDS = 2.4;
+  const CHARGE_SECONDS = 1;
+  const PLAYER_SPEED = 285;
+  const DASH_SPEED = PLAYER_SPEED * 3;
+  const DASH_DAMAGE = 9;
 
   const phasePlan = {
     wave1: 15,
@@ -31,11 +35,12 @@
     phaseTime: 0,
     elapsed: 0,
     lastTime: 0,
+    nextEnemyId: 1,
     fireCooldown: 0,
     score: 0,
     keys: new Set(),
     spawnTimer: 0,
-    player: { x: 86, y: HEIGHT / 2, lives: 3, invincible: 0 },
+    player: makePlayer(),
     knives: [],
     enemies: [],
     enemyBullets: [],
@@ -57,17 +62,34 @@
     ],
   };
 
+  function makePlayer() {
+    return {
+      x: 86,
+      y: HEIGHT / 2,
+      lives: 3,
+      invincible: 0,
+      chargeTime: 0,
+      wasCharging: false,
+      dashState: "none",
+      dashOrigin: { x: 86, y: HEIGHT / 2 },
+      dashHits: new Set(),
+      trail: [],
+    };
+  }
+
   function resetGame() {
     state.mode = "playing";
     state.phase = "wave1";
     state.phaseTime = 0;
     state.elapsed = 0;
     state.lastTime = 0;
+    state.nextEnemyId = 1;
     state.fireCooldown = 0;
     state.score = 0;
     state.keys.clear();
     state.spawnTimer = 0.25;
-    state.player = { x: 86, y: HEIGHT / 2, lives: 3, invincible: 1.5 };
+    state.player = makePlayer();
+    state.player.invincible = 1.5;
     state.knives = [];
     state.enemies = [];
     state.enemyBullets = [];
@@ -167,6 +189,7 @@
   function spawnEnemy() {
     const y = 76 + Math.random() * (HEIGHT - 152);
     state.enemies.push({
+      id: state.nextEnemyId,
       x: WIDTH + 28,
       y,
       vx: -115 - Math.random() * 55,
@@ -174,6 +197,7 @@
       fireTimer: 0.45 + Math.random() * 0.8,
       wave: state.phase,
     });
+    state.nextEnemyId += 1;
   }
 
   function enemyShoot(enemy, speed) {
@@ -273,7 +297,12 @@
   }
 
   function updatePlayer(dt) {
-    const speed = 285;
+    if (state.player.dashState !== "none") {
+      updateDash(dt);
+      return;
+    }
+
+    const speed = PLAYER_SPEED;
     let dx = 0;
     let dy = 0;
     if (state.keys.has("ArrowLeft") || state.keys.has("KeyA")) dx -= 1;
@@ -284,10 +313,76 @@
     state.player.x = clamp(state.player.x + (dx / len) * speed * dt, 34, WIDTH * 0.48);
     state.player.y = clamp(state.player.y + (dy / len) * speed * dt, 34, HEIGHT - 34);
 
-    if ((state.keys.has("Space") || state.keys.has("KeyZ")) && state.fireCooldown <= 0) {
+    updateCharge(dt);
+
+    if (state.keys.has("KeyZ") && state.fireCooldown <= 0) {
       shootKnife();
       state.fireCooldown = PLAYER_FIRE_INTERVAL;
     }
+  }
+
+  function updateCharge(dt) {
+    const charging = state.keys.has("Space");
+    if (charging) {
+      state.player.chargeTime += dt;
+      state.player.wasCharging = true;
+      return;
+    }
+    state.player.wasCharging = false;
+    state.player.chargeTime = 0;
+  }
+
+  function releaseCharge() {
+    if (!state.player.wasCharging || state.player.dashState !== "none" || state.mode !== "playing") return;
+    if (state.player.chargeTime >= CHARGE_SECONDS) {
+      startDash();
+    } else if (state.fireCooldown <= 0) {
+      shootKnife();
+      state.fireCooldown = PLAYER_FIRE_INTERVAL;
+    }
+    state.player.wasCharging = false;
+    state.player.chargeTime = 0;
+  }
+
+  function startDash() {
+    state.player.dashState = "dash";
+    state.player.dashOrigin = { x: state.player.x, y: state.player.y };
+    state.player.dashHits = new Set();
+    state.player.trail = [];
+    state.player.invincible = 999;
+    state.knives = [];
+  }
+
+  function updateDash(dt) {
+    const player = state.player;
+    player.invincible = 999;
+    player.trail.push({ x: player.x, y: player.y, life: 0.22 });
+    if (player.trail.length > 20) player.trail.shift();
+
+    if (player.dashState === "dash") {
+      player.x += DASH_SPEED * dt;
+      if (player.x >= WIDTH - PLAYER_RADIUS) {
+        player.x = WIDTH - PLAYER_RADIUS;
+        player.dashState = "return";
+      }
+    } else if (player.dashState === "return") {
+      const dx = player.dashOrigin.x - player.x;
+      const dy = player.dashOrigin.y - player.y;
+      const len = Math.hypot(dx, dy);
+      if (len <= PLAYER_SPEED * dt) {
+        player.x = player.dashOrigin.x;
+        player.y = player.dashOrigin.y;
+        player.dashState = "none";
+        player.invincible = 0.35;
+        player.trail = [];
+        return;
+      }
+      player.x += (dx / len) * PLAYER_SPEED * dt;
+      player.y += (dy / len) * PLAYER_SPEED * dt;
+    }
+
+    for (const trail of player.trail) trail.life -= dt;
+    player.trail = player.trail.filter((trail) => trail.life > 0);
   }
 
   function updatePhase(dt) {
@@ -350,6 +445,8 @@
   }
 
   function checkCollisions() {
+    checkDashCollisions();
+
     for (const knife of state.knives) {
       for (const enemy of state.enemies) {
         if (distance(knife, enemy) < knife.r + enemy.r) {
@@ -393,6 +490,28 @@
     state.enemies = state.enemies.filter((enemy) => !enemy.dead);
   }
 
+  function checkDashCollisions() {
+    if (state.player.dashState !== "dash") return;
+    for (const enemy of state.enemies) {
+      if (state.player.dashHits.has(`enemy-${enemy.id}`)) continue;
+      if (distance(state.player, enemy) < PLAYER_RADIUS + enemy.r) {
+        state.player.dashHits.add(`enemy-${enemy.id}`);
+        enemy.dead = true;
+        state.score += 100;
+        burst(enemy.x, enemy.y, "#7ee8ff", 16);
+      }
+    }
+    if (state.boss && !state.player.dashHits.has("boss") && distance(state.player, state.boss) < PLAYER_RADIUS + state.boss.r) {
+      state.player.dashHits.add("boss");
+      state.boss.hp -= DASH_DAMAGE;
+      burst(state.boss.x, state.boss.y, "#7ee8ff", 24);
+      if (state.boss.rank === 1 && state.boss.hp <= phasePlan.bossPhaseTarget && !state.boss.changed) {
+        state.message = "つばめの攻撃が激しくなった！";
+      }
+      if (state.boss.hp <= 0) defeatBoss();
+    }
+  }
+
   function defeatBoss() {
     burst(state.boss.x, state.boss.y, "#7ee8ff", 34);
     if (state.phase === "midBoss") {
@@ -431,6 +550,7 @@
   function draw() {
     drawBackground();
     drawHud();
+    drawDashTrail();
     drawPlayer();
     drawKnives();
     drawEnemies();
@@ -438,6 +558,17 @@
     drawEnemyBullets();
     drawParticles();
     drawOverlayMessage();
+  }
+
+  function drawDashTrail() {
+    for (const trail of state.player.trail) {
+      ctx.globalAlpha = Math.max(0, trail.life * 3.8);
+      ctx.fillStyle = "#7ee8ff";
+      ctx.beginPath();
+      ctx.arc(trail.x, trail.y, 12, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.globalAlpha = 1;
+    }
   }
 
   function drawBackground() {
@@ -479,7 +610,7 @@
     ctx.font = "700 18px sans-serif";
     ctx.fillText(`1面 テニスコート  残機 ${state.player.lives}  得点 ${state.score}`, 18, 30);
     ctx.font = "700 14px sans-serif";
-    ctx.fillText("移動: 矢印/WASD  攻撃: Z/Space", 18, HEIGHT - 18);
+    ctx.fillText("移動: 矢印/WASD  小刀: Z  溜め突進: Space長押し", 18, HEIGHT - 18);
     ctx.textAlign = "right";
     ctx.fillText(phaseLabel(), WIDTH - 18, 30);
     ctx.textAlign = "left";
@@ -500,10 +631,24 @@
   }
 
   function drawPlayer() {
-    const flicker = state.player.invincible > 0 && Math.floor(state.elapsed * 14) % 2 === 0;
+    const dashActive = state.player.dashState !== "none";
+    const flickerRate = dashActive ? 4 : 14;
+    const flicker = state.player.invincible > 0 && Math.floor(state.elapsed * flickerRate) % 2 === 0;
     if (flicker) return;
     ctx.save();
     ctx.translate(state.player.x, state.player.y);
+    if (state.player.chargeTime >= CHARGE_SECONDS && !dashActive) {
+      const pulse = 20 + Math.sin(state.elapsed * 12) * 5;
+      ctx.strokeStyle = "rgba(126, 232, 255, 0.9)";
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.arc(0, 8, pulse, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.strokeStyle = "rgba(248, 216, 74, 0.78)";
+      ctx.beginPath();
+      ctx.arc(0, 8, pulse + 10, 0, Math.PI * 2);
+      ctx.stroke();
+    }
     ctx.fillStyle = "#090b12";
     ctx.beginPath();
     ctx.arc(0, -12, 14, 0, Math.PI * 2);
@@ -668,6 +813,7 @@
   });
 
   window.addEventListener("keyup", (event) => {
+    if (event.code === "Space") releaseCharge();
     state.keys.delete(event.code);
   });
 })();
