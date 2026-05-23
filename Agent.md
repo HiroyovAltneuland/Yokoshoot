@@ -159,6 +159,12 @@ The conversation layout is:
 - Dialogue text area
 - Speaker name display
 
+Standing portrait direction:
+
+- 黒羽 凛 faces left in conversation art.
+- Stage 1 mid-boss 朝比奈つばめ faces front and should feel relaxed, confident, and slightly taunting.
+- Stage 1 boss 朝比奈つばめ faces right and should feel serious, focused, and fully committed.
+
 The conversation should end before combat begins.
 
 Dialogue should make it clear whether the upcoming fight is a mid-boss or boss encounter.
