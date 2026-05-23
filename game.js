@@ -19,10 +19,10 @@
 
   const phasePlan = {
     wave1: 15,
-    wave2: 10,
-    midBossTarget: 30,
-    bossPhaseTarget: 20,
-    bossDefeatTarget: 40,
+    wave2: 7,
+    midBossTarget: 20,
+    bossPhaseTarget: 15,
+    bossDefeatTarget: 25,
   };
 
   const state = {
@@ -172,6 +172,7 @@
       vx: -115 - Math.random() * 55,
       r: 18,
       fireTimer: 0.45 + Math.random() * 0.8,
+      wave: state.phase,
     });
   }
 
@@ -186,6 +187,42 @@
       vy: (dy / len) * speed,
       r: 8,
     });
+  }
+
+  function shootStraightTwoWay(enemy, speed) {
+    for (const vy of [-70, 70]) {
+      state.enemyBullets.push({
+        x: enemy.x - 16,
+        y: enemy.y,
+        vx: -speed,
+        vy,
+        r: 8,
+      });
+    }
+  }
+
+  function shootEightWay(enemy, speed) {
+    for (let i = 0; i < 8; i += 1) {
+      const angle = (Math.PI * 2 * i) / 8;
+      state.enemyBullets.push({
+        x: enemy.x,
+        y: enemy.y,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed,
+        r: 8,
+      });
+    }
+  }
+
+  function regularEnemyShoot(enemy) {
+    const useSpecial = Math.random() < 0.25;
+    if (!useSpecial) {
+      enemyShoot(enemy, 230);
+    } else if (enemy.wave === "wave2") {
+      shootEightWay(enemy, 175);
+    } else {
+      shootStraightTwoWay(enemy, 230);
+    }
   }
 
   function bossShoot(dt) {
@@ -288,7 +325,7 @@
       enemy.fireTimer -= dt;
       if (enemy.fireTimer <= 0) {
         enemy.fireTimer = 1.55 + Math.random() * 0.9;
-        enemyShoot(enemy, 230);
+        regularEnemyShoot(enemy);
       }
     }
     state.enemies = state.enemies.filter((enemy) => enemy.x > -40);
