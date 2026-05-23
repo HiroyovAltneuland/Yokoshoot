@@ -20,6 +20,7 @@
   const PLAYER_SPEED = 285;
   const DASH_SPEED = PLAYER_SPEED * 3;
   const DASH_DAMAGE = 9;
+  const DASH_COOLDOWN_SECONDS = 4;
 
   const phasePlan = {
     wave1: 15,
@@ -70,6 +71,7 @@
       lives: 3,
       invincible: 0,
       chargeTime: 0,
+      dashCooldown: 0,
       wasCharging: false,
       dashState: "none",
       dashOrigin: { x: 86, y: HEIGHT / 2 },
@@ -299,6 +301,7 @@
     state.phaseTime += dt;
     state.fireCooldown -= dt;
     state.player.invincible = Math.max(0, state.player.invincible - dt);
+    state.player.dashCooldown = Math.max(0, state.player.dashCooldown - dt);
 
     updatePlayer(dt);
     updatePhase(dt);
@@ -347,9 +350,9 @@
 
   function releaseCharge() {
     if (!state.player.wasCharging || state.player.dashState !== "none" || state.mode !== "playing") return;
-    if (state.player.chargeTime >= CHARGE_SECONDS) {
+    if (state.player.chargeTime >= CHARGE_SECONDS && state.player.dashCooldown <= 0) {
       startDash();
-    } else if (state.fireCooldown <= 0) {
+    } else if (state.player.chargeTime < CHARGE_SECONDS && state.fireCooldown <= 0) {
       shootKnife();
       state.fireCooldown = PLAYER_FIRE_INTERVAL;
     }
@@ -363,6 +366,7 @@
     state.player.dashHits = new Set();
     state.player.trail = [];
     state.player.invincible = 999;
+    state.player.dashCooldown = DASH_COOLDOWN_SECONDS;
     state.knives = [];
   }
 
@@ -688,6 +692,21 @@
     ctx.closePath();
     ctx.fill();
     ctx.restore();
+    drawDashCooldownGauge();
+  }
+
+  function drawDashCooldownGauge() {
+    if (state.player.dashCooldown <= 0 || state.player.dashState !== "none") return;
+    const x = state.player.x - 22;
+    const y = state.player.y - 56;
+    const ratio = state.player.dashCooldown / DASH_COOLDOWN_SECONDS;
+    ctx.fillStyle = "rgba(5, 7, 18, 0.72)";
+    ctx.fillRect(x, y, 44, 6);
+    ctx.fillStyle = "#7ee8ff";
+    ctx.fillRect(x, y, 44 * ratio, 6);
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.72)";
+    ctx.lineWidth = 1;
+    ctx.strokeRect(x, y, 44, 6);
   }
 
   function drawKnives() {
