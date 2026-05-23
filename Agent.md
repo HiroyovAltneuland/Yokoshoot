@@ -112,6 +112,17 @@ The player character is:
 - Stage 6 boss `御門院 朔夜`: The school chairperson. The final enemy should feel like the hidden authority behind the school conflict.
 - `御門院 真琴` and `御門院 朔夜` share the same family name to connect the stage 5 and stage 6 conflicts.
 
+## Stage 1 Gameplay Direction
+
+- Stage 1 is playable first and should establish the core shooting feel.
+- The protagonist's normal attack fires 2 times per second.
+- Stage 1 enemies mainly attack with tennis balls.
+- Regular enemies are defeated by 1 normal attack hit.
+- The mid-boss is defeated by 30 normal attack hits.
+- The boss changes attack behavior after taking 20 hits.
+- The boss is defeated after taking 40 total hits.
+- Target play-time feel: regular enemies 1 for about 15 seconds, mid-boss for about 15 seconds, regular enemies 2 for about 10 seconds, boss for about 30 seconds.
+
 ## Title Art Direction
 
 - Title logo text: `学園ブレード`.
