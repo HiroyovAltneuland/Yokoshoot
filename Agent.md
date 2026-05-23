@@ -122,6 +122,7 @@ The player character is:
 - The protagonist's normal attack fires 3 times per second.
 - Stage 1 enemies mainly attack with tennis balls.
 - Regular enemy shot frequency should be about 75% of the initial prototype frequency.
+- In each regular enemy section, the first 3 spawned regular enemies should fire only normal player-aimed shots.
 - During regular enemies 1, tennis ball attacks should be player-aimed shots and forward 2-way shots at a 3:1 ratio.
 - The forward 2-way shot uses 30 degrees and 330 degrees, where 0 degrees means left and angles increase clockwise.
 - During regular enemies 2, tennis ball attacks should be player-aimed shots and 8-way radial shots at a 3:1 ratio.
