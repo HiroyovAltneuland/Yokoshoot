@@ -54,12 +54,12 @@ The in-game section has 6 stages. Each stage follows the same structure:
 
 There are 6 stages:
 
-- Stage 1: Tennis club
-- Stage 2: Public morals committee
-- Stage 3: Rival bob-cut kendo girl
-- Stage 4: Yakuza underlings serving the boss
-- Stage 5: Student council president in a white sailor uniform
-- Stage 6: School chairperson
+- Stage 1: Tennis club, set on the tennis courts at sunset. Boss: `朝比奈 つばめ`.
+- Stage 2: Public morals committee, set in the school corridor near the student guidance room. Boss: `鬼塚 律子`.
+- Stage 3: Rival bob-cut kendo girl, set in the kendo hall. Boss: `一文字 小夜`.
+- Stage 4: Yakuza underlings serving the boss, set behind the school gate around the bicycle parking area and old gym storage. Boss: `黒須 仁美`.
+- Stage 5: Student council president in a white sailor uniform, set in the student council room and stairway toward the clock tower. Boss: `御門院 真琴`.
+- Stage 6: School chairperson, set in the chairperson's office and rooftop garden at night. Boss: `御門院 朔夜`.
 
 Each stage should contain:
 
@@ -104,12 +104,13 @@ The player character is:
 
 ## Boss And Faction Direction
 
-- Stage 1 boss faction: Tennis club. Use tennis rackets, tennis balls, court lines, and club uniforms as visual motifs.
-- Stage 2 boss faction: Public morals committee. Use armbands, inspection notebooks, discipline signs, and strict school-rule imagery.
-- Stage 3 boss: A rival girl swordswoman with a bob haircut and kendo uniform. She should feel like the protagonist's personal mirror and technical equal.
-- Stage 4 boss faction: Yakuza underlings serving the boss. Keep the school setting by framing them as intruders or outside enforcers around the school grounds.
-- Stage 5 boss: The student council president, a girl in a white sailor uniform. She should feel elegant, commanding, and ideologically opposed to the protagonist.
-- Stage 6 boss: The school chairperson. The final enemy should feel like the hidden authority behind the school conflict.
+- Stage 1 boss `朝比奈 つばめ`: Tennis club ace. Use tennis rackets, tennis balls, court lines, and club uniforms as visual motifs.
+- Stage 2 boss `鬼塚 律子`: Public morals committee leader. Use armbands, inspection notebooks, discipline signs, and strict school-rule imagery.
+- Stage 3 boss `一文字 小夜`: A rival girl swordswoman with a bob haircut and kendo uniform. She should feel like the protagonist's personal mirror and technical equal.
+- Stage 4 boss `黒須 仁美`: A woman who commands yakuza underlings serving the boss. Keep the school setting by framing them as intruders or outside enforcers around the school grounds.
+- Stage 5 boss `御門院 真琴`: The student council president, a girl in a white sailor uniform. She should feel elegant, commanding, and ideologically opposed to the protagonist.
+- Stage 6 boss `御門院 朔夜`: The school chairperson. The final enemy should feel like the hidden authority behind the school conflict.
+- `御門院 真琴` and `御門院 朔夜` share the same family name to connect the stage 5 and stage 6 conflicts.
 
 ## Title Art Direction
 
