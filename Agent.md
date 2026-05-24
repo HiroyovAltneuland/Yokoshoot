@@ -165,6 +165,7 @@ The player character is:
 ## In-Game Visual Direction
 
 - In-game characters, projectiles, effects, and stage backgrounds should use a readable pixel-art style.
+- The in-game canvas should always preserve its 16:9 aspect ratio across resolutions; unused viewport space should be black letterbox/pillarbox bars.
 - Prefer blocky silhouettes, hard edges, and stepped shapes in canvas gameplay rendering.
 - Avoid smooth gradients or round vector-like character shapes in in-game rendering unless there is a strong reason.
 - Rin's in-game sprite uses a late-1990s Japanese horror adventure mood: subdued, semi-realistic pixel art with four 3-frame states for forward movement, backward movement, charged dash, and neutral idle.

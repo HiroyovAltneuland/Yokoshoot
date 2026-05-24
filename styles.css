@@ -126,28 +126,33 @@ h1 img {
 
 .game-screen {
   position: relative;
+  display: grid;
+  place-items: center;
   width: 100vw;
   height: 100vh;
   overflow: hidden;
-  background:
-    linear-gradient(180deg, rgba(255, 154, 78, 0.28), rgba(7, 10, 24, 0.42)),
-    #101522;
+  background: #000;
 }
 
 #game-canvas {
+  grid-area: 1 / 1;
   display: block;
-  width: 100vw;
-  height: 100vh;
+  width: min(100vw, 177.7778vh);
+  height: min(100vh, 56.25vw);
+  aspect-ratio: 16 / 9;
   background: #111827;
   image-rendering: pixelated;
   image-rendering: crisp-edges;
 }
 
 .dialogue-box {
-  position: absolute;
-  inset: 0;
+  position: relative;
+  grid-area: 1 / 1;
   z-index: 5;
   display: grid;
+  width: min(100vw, 177.7778vh);
+  height: min(100vh, 56.25vw);
+  aspect-ratio: 16 / 9;
   grid-template-columns: minmax(150px, 30vw) minmax(260px, 1fr) minmax(150px, 30vw);
   gap: 12px;
   align-items: end;
