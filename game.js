@@ -11,6 +11,8 @@
   const dialogueLine = document.getElementById("dialogue-line");
   const dialogueNext = document.getElementById("dialogue-next");
   const enemyPortrait = document.getElementById("enemy-portrait");
+  const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+  let audioContext = null;
 
   const WIDTH = canvas.width;
   const HEIGHT = canvas.height;
@@ -106,6 +108,7 @@
   }
 
   function startGame() {
+    ensureAudioContext();
     resetGame();
     titleScreen.hidden = true;
     gameScreen.hidden = false;
@@ -189,7 +192,69 @@
     };
   }
 
+  function ensureAudioContext() {
+    if (!AudioContextClass) return null;
+    if (!audioContext) audioContext = new AudioContextClass();
+    if (audioContext.state === "suspended") audioContext.resume();
+    return audioContext;
+  }
+
+  function playShotSound(kind) {
+    const audio = ensureAudioContext();
+    if (!audio) return;
+
+    if (kind === "knife") {
+      playNoiseHit(audio, 0.09, 0.045, "highpass", 2500, 0.08);
+      playToneSweep(audio, 0.09, 880, 1520, 0.025, "triangle");
+    } else if (kind === "bossSmash") {
+      playNoiseHit(audio, 0.16, 0.12, "bandpass", 720, 0.2);
+      playToneSweep(audio, 0.14, 170, 86, 0.11, "sine");
+    } else {
+      playNoiseHit(audio, 0.1, 0.085, "bandpass", 1150, 0.12);
+      playToneSweep(audio, 0.08, 260, 160, 0.055, "sine");
+    }
+  }
+
+  function playNoiseHit(audio, duration, decay, filterType, frequency, volume) {
+    const sampleCount = Math.max(1, Math.floor(audio.sampleRate * duration));
+    const buffer = audio.createBuffer(1, sampleCount, audio.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < sampleCount; i += 1) data[i] = Math.random() * 2 - 1;
+
+    const source = audio.createBufferSource();
+    const filter = audio.createBiquadFilter();
+    const gain = audio.createGain();
+    const now = audio.currentTime;
+    filter.type = filterType;
+    filter.frequency.setValueAtTime(frequency, now);
+    filter.Q.setValueAtTime(2.1, now);
+    gain.gain.setValueAtTime(volume, now);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + decay);
+    source.buffer = buffer;
+    source.connect(filter);
+    filter.connect(gain);
+    gain.connect(audio.destination);
+    source.start(now);
+    source.stop(now + duration);
+  }
+
+  function playToneSweep(audio, duration, startFrequency, endFrequency, volume, type) {
+    const oscillator = audio.createOscillator();
+    const gain = audio.createGain();
+    const now = audio.currentTime;
+    oscillator.type = type;
+    oscillator.frequency.setValueAtTime(startFrequency, now);
+    oscillator.frequency.exponentialRampToValueAtTime(endFrequency, now + duration);
+    gain.gain.setValueAtTime(volume, now);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+    oscillator.connect(gain);
+    gain.connect(audio.destination);
+    oscillator.start(now);
+    oscillator.stop(now + duration);
+  }
+
   function shootKnife() {
+    playShotSound("knife");
     state.knives.push({
       x: state.player.x + 22,
       y: state.player.y,
@@ -215,7 +280,8 @@
     state.nextEnemyId += 1;
   }
 
-  function enemyShoot(enemy, speed) {
+  function enemyShoot(enemy, speed, soundKind = "enemyReturn") {
+    playShotSound(soundKind);
     const dx = state.player.x - enemy.x;
     const dy = state.player.y - enemy.y;
     const len = Math.hypot(dx, dy) || 1;
@@ -240,11 +306,13 @@
   }
 
   function shootStraightTwoWay(enemy, speed) {
+    playShotSound("enemyReturn");
     tennisBallAtAngle(enemy, speed, 30);
     tennisBallAtAngle(enemy, speed, 330);
   }
 
   function shootEightWay(enemy, speed) {
+    playShotSound("enemyReturn");
     for (const degrees of [0, 45, 90, 135, 180, 225, 270, 315]) {
       tennisBallAtAngle(enemy, speed, degrees);
     }
@@ -279,12 +347,13 @@
 
     if (boss.rank === 0) {
       boss.fireTimer = 0.62;
-      enemyShoot(boss, 245);
+      enemyShoot(boss, 245, "bossSmash");
       return;
     }
 
     boss.changed = boss.hp <= phasePlan.bossPhaseTarget;
     boss.fireTimer = boss.changed ? 0.32 : 0.52;
+    playShotSound("bossSmash");
     const angles = boss.changed ? [-0.34, -0.17, 0, 0.17, 0.34] : [-0.18, 0, 0.18];
     for (const angle of angles) {
       const base = Math.PI + angle;
