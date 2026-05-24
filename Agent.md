@@ -149,6 +149,11 @@ The player character is:
 - A regular enemy can fire a special 2-way or 8-way shot only once; after that, it should fire only normal player-aimed shots.
 - Regular enemies that fire 2-way or 8-way shots should immediately change direction and move right.
 - Regular enemies are defeated by 1 normal attack hit.
+- Stage 1 wave 1 should include exactly one pink twin-tail tennis club girl sprite, about Rin's in-game size, using a 3-frame forward animation.
+- Stage 1 wave 2 should include exactly one tall visor-and-glasses tennis club girl with a single ponytail, about Rin's in-game size, using a 3-frame forward animation.
+- The remaining regular enemies in both Stage 1 waves should be split between smaller ball-collecting robot B sprites and smaller umpire drone A/B sprites.
+- Ball-collecting robot B should animate its basket moving up and down across 3 frames.
+- Umpire drone A and B should animate their propellers rotating across 3 frames.
 - Stage 1 should move to the mid-boss or boss only after the current regular enemies are defeated or leave the screen, and their remaining tennis balls are gone.
 - The mid-boss is defeated by 20 normal attack hits.
 - Stage 1 mid-boss dialogue should be a single line and should advance automatically after 3.4 seconds without pressing a button.
