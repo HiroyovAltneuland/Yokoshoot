@@ -642,6 +642,7 @@
   }
 
   function draw() {
+    ctx.imageSmoothingEnabled = false;
     drawBackground();
     drawHud();
     drawDashTrail();
@@ -654,47 +655,64 @@
     drawOverlayMessage();
   }
 
+  function pixelRect(x, y, width, height) {
+    ctx.fillRect(Math.round(x), Math.round(y), Math.round(width), Math.round(height));
+  }
+
   function drawDashTrail() {
     for (const trail of state.player.trail) {
       ctx.globalAlpha = Math.max(0, trail.life * 3.8);
       ctx.fillStyle = "#7ee8ff";
-      ctx.beginPath();
-      ctx.arc(trail.x, trail.y, 12, 0, Math.PI * 2);
-      ctx.fill();
+      pixelRect(trail.x - 14, trail.y - 6, 28, 12);
+      ctx.fillStyle = "#f8d84a";
+      pixelRect(trail.x - 6, trail.y - 12, 12, 24);
       ctx.globalAlpha = 1;
     }
   }
 
   function drawBackground() {
-    const grad = ctx.createLinearGradient(0, 0, 0, HEIGHT);
-    grad.addColorStop(0, "#f09952");
-    grad.addColorStop(0.42, "#27314d");
-    grad.addColorStop(1, "#101522");
-    ctx.fillStyle = grad;
-    ctx.fillRect(0, 0, WIDTH, HEIGHT);
+    ctx.fillStyle = "#f09952";
+    pixelRect(0, 0, WIDTH, 86);
+    ctx.fillStyle = "#a75d52";
+    pixelRect(0, 86, WIDTH, 68);
+    ctx.fillStyle = "#27314d";
+    pixelRect(0, 154, WIDTH, 112);
+    ctx.fillStyle = "#101522";
+    pixelRect(0, 266, WIDTH, HEIGHT - 266);
 
-    ctx.fillStyle = "rgba(32, 39, 58, 0.9)";
-    ctx.fillRect(0, 92, WIDTH, 130);
+    ctx.fillStyle = "#20273a";
+    pixelRect(0, 92, WIDTH, 130);
+    ctx.fillStyle = "#151b2b";
+    pixelRect(0, 204, WIDTH, 18);
     for (let x = 30; x < WIDTH; x += 84) {
-      ctx.fillStyle = "rgba(255, 205, 120, 0.42)";
-      ctx.fillRect(x, 112, 42, 58);
+      ctx.fillStyle = "#ffcd78";
+      pixelRect(x, 112, 42, 58);
+      ctx.fillStyle = "#6f6f6f";
+      pixelRect(x + 18, 112, 4, 58);
+      pixelRect(x, 138, 42, 4);
     }
-    ctx.strokeStyle = "rgba(255,255,255,0.18)";
-    ctx.lineWidth = 2;
+
+    ctx.fillStyle = "#0f1e27";
     for (let x = -20; x < WIDTH; x += 80) {
-      ctx.beginPath();
-      ctx.moveTo(x, HEIGHT - 108);
-      ctx.lineTo(x + 70, HEIGHT);
-      ctx.stroke();
+      for (let y = HEIGHT - 112; y < HEIGHT; y += 16) {
+        pixelRect(x + y * 0.42 - HEIGHT * 0.42, y, 36, 3);
+      }
     }
-    ctx.fillStyle = "rgba(36, 103, 64, 0.78)";
-    ctx.fillRect(0, HEIGHT - 116, WIDTH, 116);
-    ctx.strokeStyle = "rgba(255,255,255,0.32)";
-    ctx.strokeRect(120, HEIGHT - 96, WIDTH - 240, 70);
-    ctx.beginPath();
-    ctx.moveTo(WIDTH / 2, HEIGHT - 96);
-    ctx.lineTo(WIDTH / 2, HEIGHT - 26);
-    ctx.stroke();
+
+    ctx.fillStyle = "#246740";
+    pixelRect(0, HEIGHT - 116, WIDTH, 116);
+    ctx.fillStyle = "#2e8050";
+    for (let x = 0; x < WIDTH; x += 32) {
+      for (let y = HEIGHT - 116; y < HEIGHT; y += 32) {
+        if ((x + y) % 64 === 0) pixelRect(x, y, 32, 32);
+      }
+    }
+    ctx.fillStyle = "#d7e7d4";
+    pixelRect(120, HEIGHT - 96, WIDTH - 240, 4);
+    pixelRect(120, HEIGHT - 30, WIDTH - 240, 4);
+    pixelRect(120, HEIGHT - 96, 4, 70);
+    pixelRect(WIDTH - 124, HEIGHT - 96, 4, 70);
+    pixelRect(WIDTH / 2 - 2, HEIGHT - 96, 4, 70);
   }
 
   function drawHud() {
@@ -733,41 +751,32 @@
     ctx.translate(state.player.x, state.player.y);
     if (state.player.chargeTime >= CHARGE_SECONDS && !dashActive) {
       const pulse = 20 + Math.sin(state.elapsed * 12) * 5;
-      ctx.strokeStyle = "rgba(126, 232, 255, 0.9)";
-      ctx.lineWidth = 3;
-      ctx.beginPath();
-      ctx.arc(0, 8, pulse, 0, Math.PI * 2);
-      ctx.stroke();
-      ctx.strokeStyle = "rgba(248, 216, 74, 0.78)";
-      ctx.beginPath();
-      ctx.arc(0, 8, pulse + 10, 0, Math.PI * 2);
-      ctx.stroke();
+      ctx.fillStyle = "rgba(126, 232, 255, 0.78)";
+      pixelRect(-pulse, 8 - pulse, pulse * 2, 4);
+      pixelRect(-pulse, 8 + pulse, pulse * 2, 4);
+      pixelRect(-pulse, 8 - pulse, 4, pulse * 2);
+      pixelRect(pulse, 8 - pulse, 4, pulse * 2);
+      ctx.fillStyle = "rgba(248, 216, 74, 0.72)";
+      pixelRect(-pulse - 10, -2, 8, 8);
+      pixelRect(pulse + 2, -2, 8, 8);
     }
     ctx.fillStyle = "#090b12";
-    ctx.beginPath();
-    ctx.arc(0, -12, 14, 0, Math.PI * 2);
-    ctx.fill();
+    pixelRect(-10, -28, 20, 20);
+    pixelRect(-18, -18, 36, 12);
+    ctx.fillStyle = "#1c2030";
+    pixelRect(-6, -24, 12, 8);
+    ctx.fillStyle = "#24283a";
+    pixelRect(-18, -32, 12, 20);
+    pixelRect(6, -32, 12, 20);
     ctx.fillStyle = "#11131f";
-    ctx.beginPath();
-    ctx.moveTo(-18, 0);
-    ctx.lineTo(18, 0);
-    ctx.lineTo(10, 30);
-    ctx.lineTo(-12, 30);
-    ctx.closePath();
-    ctx.fill();
-    ctx.strokeStyle = "#ffffff";
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    ctx.moveTo(-14, 8);
-    ctx.lineTo(14, 8);
-    ctx.stroke();
+    pixelRect(-16, -4, 32, 28);
+    pixelRect(-12, 24, 10, 16);
+    pixelRect(4, 24, 10, 16);
+    ctx.fillStyle = "#ffffff";
+    pixelRect(-14, 6, 28, 4);
     ctx.fillStyle = "#ff5278";
-    ctx.beginPath();
-    ctx.moveTo(14, 0);
-    ctx.lineTo(34, 8);
-    ctx.lineTo(14, 16);
-    ctx.closePath();
-    ctx.fill();
+    pixelRect(12, 0, 22, 8);
+    pixelRect(20, 8, 14, 8);
     ctx.restore();
     drawDashCooldownGauge();
   }
@@ -777,44 +786,42 @@
     const x = state.player.x - 22;
     const y = state.player.y - 56;
     const ratio = state.player.dashCooldown / DASH_COOLDOWN_SECONDS;
-    ctx.fillStyle = "rgba(5, 7, 18, 0.72)";
-    ctx.fillRect(x, y, 44, 6);
+    ctx.fillStyle = "#050712";
+    pixelRect(x, y, 44, 6);
     ctx.fillStyle = "#7ee8ff";
-    ctx.fillRect(x, y, 44 * ratio, 6);
-    ctx.strokeStyle = "rgba(255, 255, 255, 0.72)";
-    ctx.lineWidth = 1;
-    ctx.strokeRect(x, y, 44, 6);
+    pixelRect(x, y, 44 * ratio, 6);
+    ctx.fillStyle = "#ffffff";
+    pixelRect(x, y - 1, 44, 1);
   }
 
   function drawKnives() {
     for (const knife of state.knives) {
       ctx.fillStyle = "#eef5ff";
-      ctx.beginPath();
-      ctx.moveTo(knife.x + 14, knife.y);
-      ctx.lineTo(knife.x - 8, knife.y - 5);
-      ctx.lineTo(knife.x - 4, knife.y + 5);
-      ctx.closePath();
-      ctx.fill();
+      pixelRect(knife.x - 8, knife.y - 3, 22, 6);
+      ctx.fillStyle = "#a9c5df";
+      pixelRect(knife.x + 10, knife.y - 1, 6, 2);
       ctx.fillStyle = "#343847";
-      ctx.fillRect(knife.x - 14, knife.y - 2, 8, 4);
+      pixelRect(knife.x - 14, knife.y - 2, 8, 4);
     }
   }
 
   function drawEnemies() {
     for (const enemy of state.enemies) {
       ctx.fillStyle = "#f3f7ff";
-      ctx.beginPath();
-      ctx.arc(enemy.x, enemy.y, enemy.r, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.strokeStyle = "#6cd68a";
-      ctx.lineWidth = 4;
-      ctx.beginPath();
-      ctx.arc(enemy.x + 8, enemy.y - 2, 16, -0.9, 1.1);
-      ctx.stroke();
+      pixelRect(enemy.x - 12, enemy.y - 18, 24, 16);
+      pixelRect(enemy.x - 16, enemy.y - 2, 32, 24);
+      ctx.fillStyle = "#6cd68a";
+      pixelRect(enemy.x + 10, enemy.y - 16, 6, 36);
+      pixelRect(enemy.x + 16, enemy.y + 12, 18, 6);
+      pixelRect(enemy.x + 28, enemy.y + 4, 6, 18);
+      ctx.fillStyle = "#2b8f53";
+      pixelRect(enemy.x + 20, enemy.y + 10, 10, 3);
+      pixelRect(enemy.x + 24, enemy.y + 6, 3, 12);
       ctx.fillStyle = "#f8d84a";
-      ctx.beginPath();
-      ctx.arc(enemy.x - 5, enemy.y - 8, 5, 0, Math.PI * 2);
-      ctx.fill();
+      pixelRect(enemy.x - 8, enemy.y - 14, 8, 8);
+      ctx.fillStyle = "#1b2330";
+      pixelRect(enemy.x - 10, enemy.y + 22, 8, 12);
+      pixelRect(enemy.x + 6, enemy.y + 22, 8, 12);
     }
   }
 
@@ -824,34 +831,35 @@
     ctx.save();
     ctx.translate(boss.x, boss.y);
     ctx.fillStyle = boss.rank ? "#ffffff" : "#f3f7ff";
-    ctx.beginPath();
-    ctx.arc(0, -20, boss.rank ? 22 : 18, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = boss.changed ? "#ff5278" : "#6cd68a";
-    ctx.fillRect(-32, -2, 64, 58);
-    ctx.strokeStyle = "#f8d84a";
-    ctx.lineWidth = 8;
-    ctx.beginPath();
-    ctx.arc(-2, 10, boss.rank ? 48 : 38, -0.7, 0.9);
-    ctx.stroke();
+    pixelRect(boss.rank ? -20 : -16, -44, boss.rank ? 40 : 32, boss.rank ? 32 : 28);
     ctx.fillStyle = "#f8d84a";
-    ctx.beginPath();
-    ctx.arc(-20, -28, 8, 0, Math.PI * 2);
-    ctx.fill();
+    pixelRect(-28, -52, 18, 18);
+    pixelRect(10, -52, 18, 18);
+    ctx.fillStyle = boss.rank ? "#ffffff" : "#f3f7ff";
+    pixelRect(-28, -14, 56, 62);
+    ctx.fillStyle = boss.changed ? "#ff5278" : "#6cd68a";
+    pixelRect(-34, -4, 68, 14);
+    pixelRect(-28, 10, 56, 38);
+    ctx.fillStyle = "#f8d84a";
+    pixelRect(-58, -4, 10, 68);
+    pixelRect(-72, 50, 34, 10);
+    ctx.fillStyle = "#2b8f53";
+    pixelRect(-62, 12, 16, 6);
+    pixelRect(-66, 28, 22, 6);
+    ctx.fillStyle = "#1b2330";
+    pixelRect(-22, 48, 14, 22);
+    pixelRect(8, 48, 14, 22);
     ctx.restore();
   }
 
   function drawEnemyBullets() {
     for (const ball of state.enemyBullets) {
       ctx.fillStyle = "#d8fb4b";
-      ctx.beginPath();
-      ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.strokeStyle = "rgba(255,255,255,0.65)";
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.arc(ball.x, ball.y, ball.r - 2, -0.9, 0.9);
-      ctx.stroke();
+      pixelRect(ball.x - ball.r, ball.y - ball.r, ball.r * 2, ball.r * 2);
+      ctx.fillStyle = "#ffffff";
+      pixelRect(ball.x - ball.r + 2, ball.y - ball.r + 2, ball.r + 2, 3);
+      ctx.fillStyle = "#95b932";
+      pixelRect(ball.x + 2, ball.y + 1, ball.r - 1, 3);
     }
   }
 

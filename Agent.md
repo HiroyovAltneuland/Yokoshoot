@@ -151,6 +151,12 @@ The player character is:
 - The background should clearly read as a Japanese high school after dark or at dramatic sunset.
 - The tone should be stylish school action, not military sci-fi.
 
+## In-Game Visual Direction
+
+- In-game characters, projectiles, effects, and stage backgrounds should use a readable pixel-art style.
+- Prefer blocky silhouettes, hard edges, and stepped shapes in canvas gameplay rendering.
+- Avoid smooth gradients or round vector-like character shapes in in-game rendering unless there is a strong reason.
+
 ## Dialogue Direction
 
 Before every mid-boss battle and boss battle, show a conversation scene.
