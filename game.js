@@ -457,7 +457,7 @@
   function updateCharge(dt) {
     const charging = state.keys.has("Space");
     if (state.player.dashCooldown > 0) {
-      state.player.wasCharging = false;
+      state.player.wasCharging = charging;
       state.player.chargeTime = 0;
       state.player.chargeReadySoundPlayed = false;
       return;
