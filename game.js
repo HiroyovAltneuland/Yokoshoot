@@ -35,6 +35,15 @@
   const BOSS_SPRITE_COLUMNS = 3;
   const BOSS_SPRITE_ROWS = 2;
   const BOSS_SPRITE_DRAW_SIZE = 172;
+  const ENEMY_SPRITE_COLUMNS = 3;
+  const ENEMY_SPRITE_ROWS = 5;
+  const ENEMY_SPRITE_CONFIG = {
+    twintail: { row: 0, width: 132, height: 99, radius: 18, offsetX: 0, offsetY: 0 },
+    visorGlasses: { row: 1, width: 132, height: 99, radius: 18, offsetX: 0, offsetY: 0 },
+    robotB: { row: 2, width: 96, height: 72, radius: 14, offsetX: 0, offsetY: 4 },
+    droneA: { row: 3, width: 96, height: 72, radius: 14, offsetX: 0, offsetY: 0 },
+    droneB: { row: 4, width: 96, height: 72, radius: 14, offsetX: 0, offsetY: 0 },
+  };
   const PLAYER_SPRITE_ROWS_BY_STATE = {
     forward: 0,
     backward: 1,
@@ -80,6 +89,8 @@
   playerSprite.src = "assets/rin-sprite-sheet.png";
   const tsubameBossSprite = new Image();
   tsubameBossSprite.src = "assets/tsubame-boss-sprite-sheet.png";
+  const stageOneEnemySprite = new Image();
+  stageOneEnemySprite.src = "assets/stage1-enemy-sprite-sheet.png";
 
   const phasePlan = {
     wave1: 15,
@@ -364,18 +375,32 @@
   function spawnEnemy() {
     const y = 76 + Math.random() * (HEIGHT - 152);
     state.waveSpawnCounts[state.phase] += 1;
+    const spawnIndex = state.waveSpawnCounts[state.phase];
+    const enemyType = selectRegularEnemyType(state.phase, spawnIndex);
+    const enemyConfig = ENEMY_SPRITE_CONFIG[enemyType];
     state.enemies.push({
       id: state.nextEnemyId,
       x: WIDTH + 28,
       y,
       vx: -115 - Math.random() * 55,
-      r: 18,
+      r: enemyConfig.radius,
       fireTimer: 0.45 + Math.random() * 0.8,
+      type: enemyType,
       wave: state.phase,
-      spawnIndex: state.waveSpawnCounts[state.phase],
+      spawnIndex,
       usedSpecial: false,
     });
     state.nextEnemyId += 1;
+  }
+
+  function selectRegularEnemyType(wave, spawnIndex) {
+    if (wave === "wave1" && spawnIndex === 1) return "twintail";
+    if (wave === "wave2" && spawnIndex === 1) return "visorGlasses";
+
+    const cycle = wave === "wave1"
+      ? ["robotB", "droneA", "robotB", "droneB"]
+      : ["robotB", "droneB", "robotB", "droneA"];
+    return cycle[(spawnIndex - 2 + cycle.length) % cycle.length];
   }
 
   function enemyShoot(enemy, speed, soundKind = "enemyReturn") {
@@ -960,6 +985,13 @@
 
   function drawEnemies() {
     for (const enemy of state.enemies) {
+      ctx.save();
+      ctx.translate(enemy.x, enemy.y);
+      if (drawStageOneEnemySprite(enemy)) {
+        ctx.restore();
+        continue;
+      }
+      ctx.restore();
       ctx.fillStyle = "#f3f7ff";
       pixelRect(enemy.x - 12, enemy.y - 18, 24, 16);
       pixelRect(enemy.x - 16, enemy.y - 2, 32, 24);
@@ -976,6 +1008,30 @@
       pixelRect(enemy.x - 10, enemy.y + 22, 8, 12);
       pixelRect(enemy.x + 6, enemy.y + 22, 8, 12);
     }
+  }
+
+  function drawStageOneEnemySprite(enemy) {
+    if (!stageOneEnemySprite.complete || stageOneEnemySprite.naturalWidth === 0) return false;
+
+    const config = ENEMY_SPRITE_CONFIG[enemy.type] || ENEMY_SPRITE_CONFIG.robotB;
+    const frame = Math.floor(state.elapsed * 8) % ENEMY_SPRITE_COLUMNS;
+    const sourceWidth = stageOneEnemySprite.naturalWidth / ENEMY_SPRITE_COLUMNS;
+    const sourceHeight = stageOneEnemySprite.naturalHeight / ENEMY_SPRITE_ROWS;
+    ctx.save();
+    ctx.scale(-1, 1);
+    ctx.drawImage(
+      stageOneEnemySprite,
+      frame * sourceWidth,
+      config.row * sourceHeight,
+      sourceWidth,
+      sourceHeight,
+      -config.width * 0.5 + config.offsetX,
+      -config.height * 0.58 + config.offsetY,
+      config.width,
+      config.height
+    );
+    ctx.restore();
+    return true;
   }
 
   function drawBoss() {
