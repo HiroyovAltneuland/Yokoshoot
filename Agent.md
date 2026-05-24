@@ -175,6 +175,8 @@ The conversation layout is:
 - Enemy standing portrait on the right
 - Dialogue text area
 - Speaker name display
+- Conversation portraits should not be enclosed in visible frames.
+- Conversation portraits should be displayed large enough to feel prominent; small screens may crop them slightly.
 
 Standing portrait direction:
 
