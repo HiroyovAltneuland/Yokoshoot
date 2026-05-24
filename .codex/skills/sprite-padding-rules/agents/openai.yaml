@@ -1,0 +1,7 @@
+interface:
+  display_name: "Sprite Padding Rules"
+  short_description: "Validate sprite sheet padding and animation anchors."
+  default_prompt: "Use $sprite-padding-rules to generate or validate a game sprite sheet with safe transparent padding."
+
+policy:
+  allow_implicit_invocation: true
