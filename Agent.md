@@ -161,9 +161,10 @@ The conversation layout is:
 
 Standing portrait direction:
 
-- 黒羽 凛 faces left in conversation art.
+- 黒羽 凛 faces right in conversation art.
 - Stage 1 mid-boss 朝比奈つばめ faces front and should feel relaxed, confident, and slightly taunting.
-- Stage 1 boss 朝比奈つばめ faces right and should feel serious, focused, and fully committed.
+- Stage 1 boss 朝比奈つばめ faces left and should feel serious, focused, fully committed, and framed about as close as the mid-boss portrait.
+- Conversation character portraits should use transparent backgrounds so they can be reused across different stage situations.
 
 The conversation should end before combat begins.
 
