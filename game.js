@@ -312,8 +312,8 @@
   function shootKnife() {
     playShotSound("knife");
     state.knives.push({
-      x: state.player.x + 22,
-      y: state.player.y,
+      x: state.player.x + 34,
+      y: state.player.y - 22,
       vx: 640,
       r: 6,
     });
