@@ -139,6 +139,8 @@ h1 img {
   width: 100vw;
   height: 100vh;
   background: #111827;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
 }
 
 .dialogue-box {
