@@ -92,6 +92,7 @@ The player character is:
 - The normal shot is a thrown small knife.
 - The normal shot fires 3 times per second.
 - The shot should travel from the player toward the right side of the screen.
+- Rin's normal shot should spawn near her chest-height right hand so it appears to launch from the knife-ready pose.
 - The shot visual should read as a small blade or throwing knife.
 - The player shot sound effect should feel like a small blade cutting through air.
 
@@ -165,6 +166,7 @@ The player character is:
 - Prefer blocky silhouettes, hard edges, and stepped shapes in canvas gameplay rendering.
 - Avoid smooth gradients or round vector-like character shapes in in-game rendering unless there is a strong reason.
 - Rin's in-game sprite uses a late-1990s Japanese horror adventure mood: subdued, semi-realistic pixel art with four 3-frame states for forward movement, backward movement, charged dash, and neutral idle.
+- Rin's neutral 3-frame animation should keep her head horizontally stable while her hair, scarf, and skirt flutter like she is taking a large quiet breath.
 
 ## Dialogue Direction
 
