@@ -95,11 +95,13 @@ The player character is:
 - Rin's normal shot should spawn near her chest-height right hand so it appears to launch from the knife-ready pose.
 - The shot visual should read as a small blade or throwing knife.
 - The player shot sound effect should feel like a small blade cutting through air.
+- Rin's damage hitbox should be a small waist-centered area only; visual body overlap outside the waist should not count as damage.
 
 ### Charged Dash Attack
 
 - Holding Space charges the attack.
 - After holding Space for at least 1 second, show a charge effect around the protagonist.
+- The charge-ready effect should be centered around Rin's waist, not her full body center.
 - Releasing Space after charging for at least 1 second triggers a dash attack.
 - After the protagonist returns to the original position from a charged dash, it cannot be used again for 4 seconds.
 - During the charged dash cooldown, show a small cooldown gauge above the protagonist's head that shrinks as the cooldown decreases.
@@ -170,6 +172,9 @@ The player character is:
 - Avoid smooth gradients or round vector-like character shapes in in-game rendering unless there is a strong reason.
 - Rin's in-game sprite uses a late-1990s Japanese horror adventure mood: subdued, semi-realistic pixel art with four 3-frame states for forward movement, backward movement, charged dash, and neutral idle.
 - Rin's neutral 3-frame animation should keep her head horizontally stable while her hair, scarf, and skirt flutter like she is taking a large quiet breath.
+- Rin's neutral stance should keep her feet closed.
+- When regenerating Rin sprites, keep consistent cell padding and stable apparent character height across all frames.
+- Moving straight up or straight down should use Rin's forward movement sprite row.
 - Rin's charge-ready effect and charged dash trail use smooth circular effects rather than pixel blocks.
 - Stage 1 enemy bullets should read as rotating tennis balls with animated seams.
 

@@ -19,6 +19,8 @@
   const HEIGHT = canvas.height;
   const PLAYER_FIRE_INTERVAL = 1 / 3;
   const PLAYER_RADIUS = 15;
+  const PLAYER_HURT_RADIUS = 8;
+  const PLAYER_WAIST_OFFSET_Y = 8;
   const DIALOGUE_AUTO_SECONDS = 2.4;
   const MID_BOSS_DIALOGUE_AUTO_SECONDS = DIALOGUE_AUTO_SECONDS + 1;
   const CHARGE_SECONDS = 1;
@@ -56,7 +58,7 @@
       { x: 0, y: 0 },
     ],
     idle: [
-      { x: 0, y: 2 },
+      { x: -8, y: 2 },
       { x: 9, y: 2 },
       { x: 17, y: 2 },
     ],
@@ -137,6 +139,7 @@
       dashHits: new Set(),
       trail: [],
       moveX: 0,
+      moveY: 0,
     };
   }
 
@@ -498,6 +501,7 @@
     if (state.keys.has("ArrowDown") || state.keys.has("KeyS")) dy += 1;
     const len = Math.hypot(dx, dy) || 1;
     state.player.moveX = dx;
+    state.player.moveY = dy;
     state.player.x = clamp(state.player.x + (dx / len) * speed * dt, 34, WIDTH * 0.48);
     state.player.y = clamp(state.player.y + (dy / len) * speed * dt, 34, HEIGHT - 34);
 
@@ -676,15 +680,16 @@
     state.enemies = state.enemies.filter((enemy) => !enemy.dead);
 
     if (state.player.invincible <= 0) {
+      const hurtPoint = playerHurtPoint();
       for (const ball of state.enemyBullets) {
-        if (distance(ball, state.player) < ball.r + PLAYER_RADIUS) {
+        if (distance(ball, hurtPoint) < ball.r + PLAYER_HURT_RADIUS) {
           ball.dead = true;
           damagePlayer();
           break;
         }
       }
       for (const enemy of state.enemies) {
-        if (distance(enemy, state.player) < enemy.r + PLAYER_RADIUS) {
+        if (distance(enemy, hurtPoint) < enemy.r + PLAYER_HURT_RADIUS) {
           enemy.dead = true;
           damagePlayer();
           break;
@@ -693,6 +698,10 @@
     }
     state.enemyBullets = state.enemyBullets.filter((ball) => !ball.dead);
     state.enemies = state.enemies.filter((enemy) => !enemy.dead);
+  }
+
+  function playerHurtPoint() {
+    return { x: state.player.x, y: state.player.y + PLAYER_WAIST_OFFSET_Y };
   }
 
   function checkDashCollisions() {
@@ -875,11 +884,11 @@
       ctx.strokeStyle = "rgba(126, 232, 255, 0.9)";
       ctx.lineWidth = 3;
       ctx.beginPath();
-      ctx.arc(0, 8, pulse, 0, Math.PI * 2);
+      ctx.arc(0, PLAYER_WAIST_OFFSET_Y, pulse, 0, Math.PI * 2);
       ctx.stroke();
       ctx.strokeStyle = "rgba(248, 216, 74, 0.78)";
       ctx.beginPath();
-      ctx.arc(0, 8, pulse + 10, 0, Math.PI * 2);
+      ctx.arc(0, PLAYER_WAIST_OFFSET_Y, pulse + 10, 0, Math.PI * 2);
       ctx.stroke();
     }
     drawPlayerSprite(dashActive);
@@ -920,6 +929,7 @@
     if (state.player.dashState === "return") return "backward";
     if (state.player.moveX > 0) return "forward";
     if (state.player.moveX < 0) return "backward";
+    if (state.player.moveY !== 0) return "forward";
     if (dashActive) return "dash";
     return "idle";
   }
