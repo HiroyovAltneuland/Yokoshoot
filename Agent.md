@@ -185,6 +185,7 @@ The conversation layout is:
 - Speaker name display
 - Conversation portraits should not be enclosed in visible frames.
 - Conversation portraits should be displayed large enough to feel prominent; small screens may crop them slightly.
+- Conversation portraits should visually meet the bottom edge of the 16:9 game area without a gap.
 
 Standing portrait direction:
 

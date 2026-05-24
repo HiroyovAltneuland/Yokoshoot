@@ -146,6 +146,8 @@ h1 img {
 }
 
 .dialogue-box {
+  --dialogue-padding: 32px;
+
   position: relative;
   grid-area: 1 / 1;
   z-index: 5;
@@ -156,7 +158,7 @@ h1 img {
   grid-template-columns: minmax(150px, 30vw) minmax(260px, 1fr) minmax(150px, 30vw);
   gap: 12px;
   align-items: end;
-  padding: 32px;
+  padding: var(--dialogue-padding);
   background: linear-gradient(180deg, rgba(5, 7, 18, 0.18), rgba(5, 7, 18, 0.82));
   overflow: hidden;
 }
@@ -175,7 +177,7 @@ h1 img {
 
 .portrait img {
   position: absolute;
-  bottom: -4%;
+  bottom: calc(var(--dialogue-padding) * -1);
   left: 50%;
   width: 126%;
   height: 126%;
@@ -265,9 +267,11 @@ h1 img {
   }
 
   .dialogue-box {
+    --dialogue-padding: 16px;
+
     grid-template-columns: 1fr 1fr;
     gap: 0;
-    padding: 16px;
+    padding: var(--dialogue-padding);
   }
 
   .dialogue-text {
@@ -281,7 +285,7 @@ h1 img {
   }
 
   .portrait img {
-    bottom: -8%;
+    bottom: calc(var(--dialogue-padding) * -1);
     width: 138%;
     height: 138%;
   }
