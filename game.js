@@ -370,7 +370,7 @@
     state.player.dashHits = new Set();
     state.player.trail = [];
     state.player.invincible = 999;
-    state.player.dashCooldown = DASH_COOLDOWN_SECONDS;
+    state.player.dashCooldown = 0;
     state.knives = [];
   }
 
@@ -394,6 +394,7 @@
         player.x = player.dashOrigin.x;
         player.y = player.dashOrigin.y;
         player.dashState = "none";
+        player.dashCooldown = DASH_COOLDOWN_SECONDS;
         player.invincible = 0.35;
         player.trail = [];
         return;

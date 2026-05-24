@@ -99,7 +99,7 @@ The player character is:
 - Holding Space charges the attack.
 - After holding Space for at least 1 second, show a charge effect around the protagonist.
 - Releasing Space after charging for at least 1 second triggers a dash attack.
-- After using a charged dash, it cannot be used again for 4 seconds.
+- After the protagonist returns to the original position from a charged dash, it cannot be used again for 4 seconds.
 - During the charged dash cooldown, show a small cooldown gauge above the protagonist's head that shrinks as the cooldown decreases.
 - During the dash and return, the protagonist is invincible, cannot fire shots, and flickers 2 times per second.
 - During the dash, the protagonist rushes to the right edge of the screen at 3 times normal movement speed, leaving a visible trail.
