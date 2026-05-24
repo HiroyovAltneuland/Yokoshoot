@@ -78,6 +78,7 @@
       chargeTime: 0,
       dashCooldown: 0,
       wasCharging: false,
+      chargeReadySoundPlayed: false,
       dashState: "none",
       dashOrigin: { x: 86, y: HEIGHT / 2 },
       dashHits: new Set(),
@@ -253,6 +254,46 @@
     oscillator.stop(now + duration);
   }
 
+  function playMotorStartSound() {
+    const audio = ensureAudioContext();
+    if (!audio) return;
+    playNoiseHit(audio, 0.5, 0.42, "highpass", 950, 0.045);
+    playToneSweep(audio, 0.52, 180, 520, 0.035, "sawtooth");
+  }
+
+  function playChargeCompleteSound() {
+    const audio = ensureAudioContext();
+    if (!audio) return;
+    playToneSweep(audio, 0.05, 620, 420, 0.09, "square");
+    window.setTimeout(() => playToneSweep(audio, 0.06, 940, 700, 0.075, "square"), 65);
+    window.setTimeout(() => playNoiseHit(audio, 0.08, 0.04, "highpass", 3200, 0.04), 95);
+  }
+
+  function playDashLaunchSound() {
+    playVoiceLine("ハッ", "cool");
+    window.setTimeout(() => {
+      const audio = ensureAudioContext();
+      if (!audio) return;
+      playNoiseHit(audio, 0.18, 0.13, "lowpass", 260, 0.22);
+      playToneSweep(audio, 0.16, 95, 48, 0.16, "sine");
+    }, 75);
+  }
+
+  function playVoiceLine(text, voiceStyle) {
+    if (!("speechSynthesis" in window) || !("SpeechSynthesisUtterance" in window)) return;
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(text);
+    const voices = window.speechSynthesis.getVoices();
+    const japaneseVoice =
+      voices.find((voice) => voice.lang && voice.lang.toLowerCase().startsWith("ja")) || voices[0];
+    if (japaneseVoice) utterance.voice = japaneseVoice;
+    utterance.lang = "ja-JP";
+    utterance.volume = voiceStyle === "cool" ? 0.62 : 0.82;
+    utterance.rate = voiceStyle === "cool" ? 1.12 : 1.08;
+    utterance.pitch = voiceStyle === "cool" ? 0.82 : 1.18;
+    window.speechSynthesis.speak(utterance);
+  }
+
   function shootKnife() {
     playShotSound("knife");
     state.knives.push({
@@ -415,13 +456,25 @@
 
   function updateCharge(dt) {
     const charging = state.keys.has("Space");
+    if (state.player.dashCooldown > 0) {
+      state.player.wasCharging = false;
+      state.player.chargeTime = 0;
+      state.player.chargeReadySoundPlayed = false;
+      return;
+    }
     if (charging) {
+      if (!state.player.wasCharging) playMotorStartSound();
       state.player.chargeTime += dt;
+      if (state.player.chargeTime >= CHARGE_SECONDS && !state.player.chargeReadySoundPlayed) {
+        playChargeCompleteSound();
+        state.player.chargeReadySoundPlayed = true;
+      }
       state.player.wasCharging = true;
       return;
     }
     state.player.wasCharging = false;
     state.player.chargeTime = 0;
+    state.player.chargeReadySoundPlayed = false;
   }
 
   function releaseCharge() {
@@ -434,9 +487,11 @@
     }
     state.player.wasCharging = false;
     state.player.chargeTime = 0;
+    state.player.chargeReadySoundPlayed = false;
   }
 
   function startDash() {
+    playDashLaunchSound();
     state.player.dashState = "dash";
     state.player.dashOrigin = { x: state.player.x, y: state.player.y };
     state.player.dashHits = new Set();
@@ -554,10 +609,11 @@
         knife.dead = true;
         state.boss.hp -= 1;
         burst(knife.x, knife.y, "#ffffff", 5);
-        if (state.boss.rank === 1 && state.boss.hp === phasePlan.bossPhaseTarget) {
-          state.message = "つばめの攻撃が激しくなった！";
+        if (state.boss.hp <= 0) {
+          defeatBoss();
+        } else if (state.boss.rank === 1 && state.boss.hp <= phasePlan.bossPhaseTarget && !state.boss.changed) {
+          triggerBossAttackChange();
         }
-        if (state.boss.hp <= 0) defeatBoss();
       }
     }
 
@@ -599,24 +655,34 @@
       state.player.dashHits.add("boss");
       state.boss.hp -= DASH_DAMAGE;
       burst(state.boss.x, state.boss.y, "#7ee8ff", 24);
-      if (state.boss.rank === 1 && state.boss.hp <= phasePlan.bossPhaseTarget && !state.boss.changed) {
-        state.message = "つばめの攻撃が激しくなった！";
+      if (state.boss.hp <= 0) {
+        defeatBoss();
+      } else if (state.boss.rank === 1 && state.boss.hp <= phasePlan.bossPhaseTarget && !state.boss.changed) {
+        triggerBossAttackChange();
       }
-      if (state.boss.hp <= 0) defeatBoss();
     }
+  }
+
+  function triggerBossAttackChange() {
+    state.boss.changed = true;
+    state.message = "つばめの攻撃が激しくなった！";
+    playVoiceLine("通さない！", "bright");
   }
 
   function defeatBoss() {
     burst(state.boss.x, state.boss.y, "#7ee8ff", 34);
     if (state.phase === "midBoss") {
+      playVoiceLine("本気なの！？", "bright");
       setPhase("wave2");
       return;
     }
+    playVoiceLine("うわーっ", "bright");
     state.mode = "clear";
     state.message = "1面クリア";
   }
 
   function damagePlayer() {
+    playVoiceLine("くっ", "cool");
     state.player.lives -= 1;
     state.player.invincible = 1.4;
     burst(state.player.x, state.player.y, "#ff5278", 18);
