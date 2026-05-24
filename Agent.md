@@ -183,6 +183,17 @@ The player character is:
 - Rin's charge-ready effect and charged dash trail use smooth circular effects rather than pixel blocks.
 - Stage 1 enemy bullets should read as rotating tennis balls with animated seams.
 
+### Sprite Padding Rules
+
+- Sprite sheets should use equal-size cells, one animation frame per cell.
+- Keep the subject fully inside each cell and never touching cell edges.
+- Keep at least 6-10px of transparent padding on every side of every cell.
+- For humanoid sprites, align the apparent foot position and character height across all frames.
+- For idle and walk loops, keep the head and torso anchor visually stable; animate secondary motion such as hair, scarf, skirt, propellers, baskets, or effects.
+- Generate poses using the largest silhouette in the animation as the padding baseline so no frame clips when rendered in-game.
+- After chroma-key removal, clear a small transparent safety margin around every cell edge to remove stray pixels.
+- Validate each sheet by checking transparent corners, per-cell alpha bounds, apparent height consistency, and stable anchor positions.
+
 ## Dialogue Direction
 
 Before every mid-boss battle and boss battle, show a conversation scene.
