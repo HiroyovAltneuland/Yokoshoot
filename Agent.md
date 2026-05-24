@@ -113,6 +113,8 @@ The player character is:
 
 ## Boss And Faction Direction
 
+- Stage 1 boss uses a two-state 3-frame sprite: normal state with an upright chest-height racket guard, and powered state with a lowered return-ace stance.
+
 - Stage 1 boss `朝比奈 つばめ`: Tennis club ace. Use tennis rackets, tennis balls, court lines, and club uniforms as visual motifs.
 - Stage 2 boss `鬼塚 律子`: Public morals committee leader. Use armbands, inspection notebooks, discipline signs, and strict school-rule imagery.
 - Stage 3 boss `一文字 小夜`: A rival girl swordswoman with a bob haircut and kendo uniform. She should feel like the protagonist's personal mirror and technical equal.
@@ -167,6 +169,8 @@ The player character is:
 - Avoid smooth gradients or round vector-like character shapes in in-game rendering unless there is a strong reason.
 - Rin's in-game sprite uses a late-1990s Japanese horror adventure mood: subdued, semi-realistic pixel art with four 3-frame states for forward movement, backward movement, charged dash, and neutral idle.
 - Rin's neutral 3-frame animation should keep her head horizontally stable while her hair, scarf, and skirt flutter like she is taking a large quiet breath.
+- Rin's charge-ready effect and charged dash trail use smooth circular effects rather than pixel blocks.
+- Stage 1 enemy bullets should read as rotating tennis balls with animated seams.
 
 ## Dialogue Direction
 

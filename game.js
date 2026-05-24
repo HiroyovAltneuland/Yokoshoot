@@ -30,6 +30,9 @@
   const PLAYER_SPRITE_ROWS = 4;
   const PLAYER_SPRITE_DRAW_WIDTH = 132;
   const PLAYER_SPRITE_DRAW_HEIGHT = 99;
+  const BOSS_SPRITE_COLUMNS = 3;
+  const BOSS_SPRITE_ROWS = 2;
+  const BOSS_SPRITE_DRAW_SIZE = 172;
   const PLAYER_SPRITE_ROWS_BY_STATE = {
     forward: 0,
     backward: 1,
@@ -58,9 +61,23 @@
       { x: 17, y: 2 },
     ],
   };
+  const BOSS_SPRITE_FRAME_OFFSETS = {
+    normal: [
+      { x: 0, y: 0 },
+      { x: 20, y: 0 },
+      { x: 41, y: 0 },
+    ],
+    powered: [
+      { x: 0, y: 0 },
+      { x: 6, y: 0 },
+      { x: 27, y: 0 },
+    ],
+  };
 
   const playerSprite = new Image();
   playerSprite.src = "assets/rin-sprite-sheet.png";
+  const tsubameBossSprite = new Image();
+  tsubameBossSprite.src = "assets/tsubame-boss-sprite-sheet.png";
 
   const phasePlan = {
     wave1: 15,
@@ -767,9 +784,9 @@
     for (const trail of state.player.trail) {
       ctx.globalAlpha = Math.max(0, trail.life * 3.8);
       ctx.fillStyle = "#7ee8ff";
-      pixelRect(trail.x - 14, trail.y - 6, 28, 12);
-      ctx.fillStyle = "#f8d84a";
-      pixelRect(trail.x - 6, trail.y - 12, 12, 24);
+      ctx.beginPath();
+      ctx.arc(trail.x, trail.y, 12, 0, Math.PI * 2);
+      ctx.fill();
       ctx.globalAlpha = 1;
     }
   }
@@ -855,14 +872,15 @@
     ctx.translate(state.player.x, state.player.y);
     if (state.player.chargeTime >= CHARGE_SECONDS && !dashActive) {
       const pulse = 20 + Math.sin(state.elapsed * 12) * 5;
-      ctx.fillStyle = "rgba(126, 232, 255, 0.78)";
-      pixelRect(-pulse, 8 - pulse, pulse * 2, 4);
-      pixelRect(-pulse, 8 + pulse, pulse * 2, 4);
-      pixelRect(-pulse, 8 - pulse, 4, pulse * 2);
-      pixelRect(pulse, 8 - pulse, 4, pulse * 2);
-      ctx.fillStyle = "rgba(248, 216, 74, 0.72)";
-      pixelRect(-pulse - 10, -2, 8, 8);
-      pixelRect(pulse + 2, -2, 8, 8);
+      ctx.strokeStyle = "rgba(126, 232, 255, 0.9)";
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.arc(0, 8, pulse, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.strokeStyle = "rgba(248, 216, 74, 0.78)";
+      ctx.beginPath();
+      ctx.arc(0, 8, pulse + 10, 0, Math.PI * 2);
+      ctx.stroke();
     }
     drawPlayerSprite(dashActive);
     ctx.restore();
@@ -955,6 +973,10 @@
     if (!boss) return;
     ctx.save();
     ctx.translate(boss.x, boss.y);
+    if (drawTsubameBossSprite(boss)) {
+      ctx.restore();
+      return;
+    }
     ctx.fillStyle = boss.rank ? "#ffffff" : "#f3f7ff";
     pixelRect(boss.rank ? -20 : -16, -44, boss.rank ? 40 : 32, boss.rank ? 32 : 28);
     ctx.fillStyle = "#f8d84a";
@@ -977,14 +999,64 @@
     ctx.restore();
   }
 
+  function drawTsubameBossSprite(boss) {
+    if (!tsubameBossSprite.complete || tsubameBossSprite.naturalWidth === 0) return false;
+
+    const frame = Math.floor(state.elapsed * 7) % BOSS_SPRITE_COLUMNS;
+    const stateName = boss.changed ? "powered" : "normal";
+    const row = boss.changed ? 1 : 0;
+    const offset = BOSS_SPRITE_FRAME_OFFSETS[stateName][frame];
+    const sourceWidth = tsubameBossSprite.naturalWidth / BOSS_SPRITE_COLUMNS;
+    const sourceHeight = tsubameBossSprite.naturalHeight / BOSS_SPRITE_ROWS;
+    ctx.drawImage(
+      tsubameBossSprite,
+      frame * sourceWidth,
+      row * sourceHeight,
+      sourceWidth,
+      sourceHeight,
+      -BOSS_SPRITE_DRAW_SIZE * 0.55 + offset.x,
+      -BOSS_SPRITE_DRAW_SIZE * 0.56 + offset.y,
+      BOSS_SPRITE_DRAW_SIZE,
+      BOSS_SPRITE_DRAW_SIZE
+    );
+    return true;
+  }
+
   function drawEnemyBullets() {
     for (const ball of state.enemyBullets) {
+      const spin = state.elapsed * 10 + ball.x * 0.04 + ball.y * 0.02;
       ctx.fillStyle = "#d8fb4b";
-      pixelRect(ball.x - ball.r, ball.y - ball.r, ball.r * 2, ball.r * 2);
-      ctx.fillStyle = "#ffffff";
-      pixelRect(ball.x - ball.r + 2, ball.y - ball.r + 2, ball.r + 2, 3);
-      ctx.fillStyle = "#95b932";
-      pixelRect(ball.x + 2, ball.y + 1, ball.r - 1, 3);
+      ctx.beginPath();
+      ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = "rgba(255,255,255,0.76)";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.ellipse(
+        ball.x + Math.cos(spin) * 1.5,
+        ball.y,
+        Math.max(2, ball.r * (0.35 + Math.abs(Math.cos(spin)) * 0.38)),
+        ball.r - 2,
+        Math.sin(spin) * 0.6,
+        -Math.PI * 0.62,
+        Math.PI * 0.62
+      );
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.ellipse(
+        ball.x - Math.cos(spin) * 1.5,
+        ball.y,
+        Math.max(2, ball.r * (0.35 + Math.abs(Math.sin(spin)) * 0.38)),
+        ball.r - 2,
+        -Math.sin(spin) * 0.6,
+        Math.PI * 0.38,
+        Math.PI * 1.62
+      );
+      ctx.stroke();
+      ctx.fillStyle = "rgba(255,255,255,0.45)";
+      ctx.beginPath();
+      ctx.arc(ball.x - ball.r * 0.3, ball.y - ball.r * 0.32, 2, 0, Math.PI * 2);
+      ctx.fill();
     }
   }
 
