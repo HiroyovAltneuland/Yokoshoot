@@ -36,6 +36,28 @@
     dash: 2,
     idle: 3,
   };
+  const PLAYER_SPRITE_FRAME_OFFSETS = {
+    forward: [
+      { x: 0, y: 0 },
+      { x: 0, y: 0 },
+      { x: 0, y: 0 },
+    ],
+    backward: [
+      { x: 0, y: 0 },
+      { x: 0, y: 0 },
+      { x: 0, y: 0 },
+    ],
+    dash: [
+      { x: 0, y: 0 },
+      { x: 0, y: 0 },
+      { x: 0, y: 0 },
+    ],
+    idle: [
+      { x: 0, y: 2 },
+      { x: 10, y: 2 },
+      { x: 20, y: 2 },
+    ],
+  };
 
   const playerSprite = new Image();
   playerSprite.src = "assets/rin-sprite-sheet.png";
@@ -857,7 +879,9 @@
     }
 
     const frame = Math.floor(state.elapsed * 8) % PLAYER_SPRITE_COLUMNS;
-    const row = getPlayerSpriteRow(dashActive);
+    const spriteState = getPlayerSpriteState(dashActive);
+    const row = PLAYER_SPRITE_ROWS_BY_STATE[spriteState];
+    const offset = PLAYER_SPRITE_FRAME_OFFSETS[spriteState][frame];
     const sourceWidth = playerSprite.naturalWidth / PLAYER_SPRITE_COLUMNS;
     const sourceHeight = playerSprite.naturalHeight / PLAYER_SPRITE_ROWS;
     ctx.drawImage(
@@ -866,20 +890,20 @@
       row * sourceHeight,
       sourceWidth,
       sourceHeight,
-      -PLAYER_SPRITE_DRAW_WIDTH * 0.42,
-      -PLAYER_SPRITE_DRAW_HEIGHT * 0.58,
+      -PLAYER_SPRITE_DRAW_WIDTH * 0.42 + offset.x,
+      -PLAYER_SPRITE_DRAW_HEIGHT * 0.58 + offset.y,
       PLAYER_SPRITE_DRAW_WIDTH,
       PLAYER_SPRITE_DRAW_HEIGHT
     );
   }
 
-  function getPlayerSpriteRow(dashActive) {
-    if (state.player.dashState === "dash") return PLAYER_SPRITE_ROWS_BY_STATE.dash;
-    if (state.player.dashState === "return") return PLAYER_SPRITE_ROWS_BY_STATE.backward;
-    if (state.player.moveX > 0) return PLAYER_SPRITE_ROWS_BY_STATE.forward;
-    if (state.player.moveX < 0) return PLAYER_SPRITE_ROWS_BY_STATE.backward;
-    if (dashActive) return PLAYER_SPRITE_ROWS_BY_STATE.dash;
-    return PLAYER_SPRITE_ROWS_BY_STATE.idle;
+  function getPlayerSpriteState(dashActive) {
+    if (state.player.dashState === "dash") return "dash";
+    if (state.player.dashState === "return") return "backward";
+    if (state.player.moveX > 0) return "forward";
+    if (state.player.moveX < 0) return "backward";
+    if (dashActive) return "dash";
+    return "idle";
   }
 
   function drawDashCooldownGauge() {
