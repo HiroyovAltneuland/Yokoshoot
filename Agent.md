@@ -102,6 +102,7 @@ The player character is:
 - Releasing Space after charging for at least 1 second triggers a dash attack.
 - After the protagonist returns to the original position from a charged dash, it cannot be used again for 4 seconds.
 - During the charged dash cooldown, show a small cooldown gauge above the protagonist's head that shrinks as the cooldown decreases.
+- During the charged dash cooldown, holding Space should not build charge or show the charge effect.
 - During the dash and return, the protagonist is invincible, cannot fire shots, and flickers 2 times per second.
 - During the dash, the protagonist rushes to the right edge of the screen at 3 times normal movement speed, leaving a visible trail.
 - A charged dash can damage each target it collides with once, dealing 9 normal-shot hits of damage.
@@ -126,6 +127,13 @@ The player character is:
 - Stage 1 enemies mainly attack with tennis balls.
 - Regular enemy shot sound effects should feel like tennis return hits.
 - Boss shot sound effects should feel like tennis smash hits.
+- Rin's damage voice should be a restrained, cool female `くっ` with slight pain.
+- Rin's charge start sound should be a small motor-like `シューン`.
+- Rin's charge completion sound should feel like turning a key.
+- Rin's charged dash should play a short cool female `ハッ`, then a strong ground-kick `ドン`.
+- Defeating stage 1 mid-boss 朝比奈つばめ should play a lively female `本気なの！？`.
+- Stage 1 boss 朝比奈つばめ's attack change should play a lively female `通さない！`.
+- Defeating stage 1 boss 朝比奈つばめ should play a lively female `うわーっ`.
 - Regular enemy shot frequency should be about 75% of the initial prototype frequency.
 - In each regular enemy section, the first 3 spawned regular enemies should fire only normal player-aimed shots.
 - During regular enemies 1, tennis ball attacks should be player-aimed shots and forward 2-way shots at a 3:1 ratio.
