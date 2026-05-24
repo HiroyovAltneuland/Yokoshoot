@@ -6,6 +6,7 @@
   const startButton = document.getElementById("start-button");
   const canvas = document.getElementById("game-canvas");
   const ctx = canvas.getContext("2d");
+  ctx.imageSmoothingEnabled = false;
   const dialogueBox = document.getElementById("dialogue-box");
   const speakerName = document.getElementById("speaker-name");
   const dialogueLine = document.getElementById("dialogue-line");
@@ -25,6 +26,19 @@
   const DASH_SPEED = PLAYER_SPEED * 3;
   const DASH_DAMAGE = 9;
   const DASH_COOLDOWN_SECONDS = 4;
+  const PLAYER_SPRITE_COLUMNS = 3;
+  const PLAYER_SPRITE_ROWS = 4;
+  const PLAYER_SPRITE_DRAW_WIDTH = 132;
+  const PLAYER_SPRITE_DRAW_HEIGHT = 99;
+  const PLAYER_SPRITE_ROWS_BY_STATE = {
+    forward: 0,
+    backward: 1,
+    dash: 2,
+    idle: 3,
+  };
+
+  const playerSprite = new Image();
+  playerSprite.src = "assets/rin-sprite-sheet.png";
 
   const phasePlan = {
     wave1: 15,
@@ -83,6 +97,7 @@
       dashOrigin: { x: 86, y: HEIGHT / 2 },
       dashHits: new Set(),
       trail: [],
+      moveX: 0,
     };
   }
 
@@ -443,6 +458,7 @@
     if (state.keys.has("ArrowUp") || state.keys.has("KeyW")) dy -= 1;
     if (state.keys.has("ArrowDown") || state.keys.has("KeyS")) dy += 1;
     const len = Math.hypot(dx, dy) || 1;
+    state.player.moveX = dx;
     state.player.x = clamp(state.player.x + (dx / len) * speed * dt, 34, WIDTH * 0.48);
     state.player.y = clamp(state.player.y + (dy / len) * speed * dt, 34, HEIGHT - 34);
 
@@ -826,25 +842,44 @@
       pixelRect(-pulse - 10, -2, 8, 8);
       pixelRect(pulse + 2, -2, 8, 8);
     }
-    ctx.fillStyle = "#090b12";
-    pixelRect(-10, -28, 20, 20);
-    pixelRect(-18, -18, 36, 12);
-    ctx.fillStyle = "#1c2030";
-    pixelRect(-6, -24, 12, 8);
-    ctx.fillStyle = "#24283a";
-    pixelRect(-18, -32, 12, 20);
-    pixelRect(6, -32, 12, 20);
-    ctx.fillStyle = "#11131f";
-    pixelRect(-16, -4, 32, 28);
-    pixelRect(-12, 24, 10, 16);
-    pixelRect(4, 24, 10, 16);
-    ctx.fillStyle = "#ffffff";
-    pixelRect(-14, 6, 28, 4);
-    ctx.fillStyle = "#ff5278";
-    pixelRect(12, 0, 22, 8);
-    pixelRect(20, 8, 14, 8);
+    drawPlayerSprite(dashActive);
     ctx.restore();
     drawDashCooldownGauge();
+  }
+
+  function drawPlayerSprite(dashActive) {
+    if (!playerSprite.complete || playerSprite.naturalWidth === 0) {
+      ctx.fillStyle = "#11131f";
+      pixelRect(-16, -28, 32, 58);
+      ctx.fillStyle = "#ff5278";
+      pixelRect(10, -4, 22, 8);
+      return;
+    }
+
+    const frame = Math.floor(state.elapsed * 8) % PLAYER_SPRITE_COLUMNS;
+    const row = getPlayerSpriteRow(dashActive);
+    const sourceWidth = playerSprite.naturalWidth / PLAYER_SPRITE_COLUMNS;
+    const sourceHeight = playerSprite.naturalHeight / PLAYER_SPRITE_ROWS;
+    ctx.drawImage(
+      playerSprite,
+      frame * sourceWidth,
+      row * sourceHeight,
+      sourceWidth,
+      sourceHeight,
+      -PLAYER_SPRITE_DRAW_WIDTH * 0.42,
+      -PLAYER_SPRITE_DRAW_HEIGHT * 0.58,
+      PLAYER_SPRITE_DRAW_WIDTH,
+      PLAYER_SPRITE_DRAW_HEIGHT
+    );
+  }
+
+  function getPlayerSpriteRow(dashActive) {
+    if (state.player.dashState === "dash") return PLAYER_SPRITE_ROWS_BY_STATE.dash;
+    if (state.player.dashState === "return") return PLAYER_SPRITE_ROWS_BY_STATE.backward;
+    if (state.player.moveX > 0) return PLAYER_SPRITE_ROWS_BY_STATE.forward;
+    if (state.player.moveX < 0) return PLAYER_SPRITE_ROWS_BY_STATE.backward;
+    if (dashActive) return PLAYER_SPRITE_ROWS_BY_STATE.dash;
+    return PLAYER_SPRITE_ROWS_BY_STATE.idle;
   }
 
   function drawDashCooldownGauge() {

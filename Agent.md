@@ -164,6 +164,7 @@ The player character is:
 - In-game characters, projectiles, effects, and stage backgrounds should use a readable pixel-art style.
 - Prefer blocky silhouettes, hard edges, and stepped shapes in canvas gameplay rendering.
 - Avoid smooth gradients or round vector-like character shapes in in-game rendering unless there is a strong reason.
+- Rin's in-game sprite uses a late-1990s Japanese horror adventure mood: subdued, semi-realistic pixel art with four 3-frame states for forward movement, backward movement, charged dash, and neutral idle.
 
 ## Dialogue Direction
 
