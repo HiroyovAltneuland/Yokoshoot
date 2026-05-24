@@ -17,6 +17,7 @@
   const PLAYER_FIRE_INTERVAL = 1 / 3;
   const PLAYER_RADIUS = 15;
   const DIALOGUE_AUTO_SECONDS = 2.4;
+  const MID_BOSS_DIALOGUE_AUTO_SECONDS = DIALOGUE_AUTO_SECONDS + 1;
   const CHARGE_SECONDS = 1;
   const PLAYER_SPEED = 285;
   const DASH_SPEED = PLAYER_SPEED * 3;
@@ -52,6 +53,7 @@
     dialogue: [],
     dialogueIndex: 0,
     dialogueTimer: 0,
+    dialogueAutoSeconds: DIALOGUE_AUTO_SECONDS,
     message: "",
   };
 
@@ -116,6 +118,7 @@
     enemyPortrait.src =
       kind === "boss" ? "assets/dialogue-tsubame-boss.png" : "assets/dialogue-tsubame-midboss.png";
     enemyPortrait.alt = "朝比奈 つばめ";
+    state.dialogueAutoSeconds = kind === "midBoss" ? MID_BOSS_DIALOGUE_AUTO_SECONDS : DIALOGUE_AUTO_SECONDS;
     state.dialogue = dialogues[kind].map((entry) => ({ ...entry, nextPhase }));
     state.dialogueIndex = 0;
     state.dialogueTimer = 0;
@@ -145,7 +148,7 @@
   function updateDialogue(dt) {
     if (state.mode !== "dialogue") return;
     state.dialogueTimer += dt;
-    if (state.dialogueTimer >= DIALOGUE_AUTO_SECONDS) {
+    if (state.dialogueTimer >= state.dialogueAutoSeconds) {
       state.dialogueTimer = 0;
       advanceDialogue();
     }
