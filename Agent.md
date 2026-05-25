@@ -130,10 +130,11 @@ The player character is:
 - Stage 1 is playable first and should establish the core shooting feel.
 - The protagonist's normal attack fires 3 times per second.
 - Stage 1 enemies mainly attack with tennis balls.
+- Rin's normal shot sound should be a sharper knife-like cut than the original prototype.
+- Rin's charge start sound should feel like a generator starting up.
 - Regular enemy shot sound effects should feel like tennis return hits.
 - Boss shot sound effects should feel like tennis smash hits.
 - Rin's damage voice should be a restrained, cool female `くっ` with slight pain.
-- Rin's charge start sound should be a small motor-like `シューン`.
 - Rin's charge completion sound should feel like turning a key.
 - Rin's charged dash should play a short cool female `ハッ`, then a strong ground-kick `ドン`.
 - Defeating stage 1 mid-boss 朝比奈つばめ should play a lively female `本気なの！？`.
@@ -151,6 +152,8 @@ The player character is:
 - Regular enemies are defeated by 1 normal attack hit.
 - Stage 1 regular enemies 1 should use only the smaller umpire drone A sprite.
 - Stage 1 regular enemies 2 should use only the smaller umpire drone B sprite.
+- Drone-type regular enemies should emit a continuous fan-like loop while at least one exists.
+- Drone-type regular enemies should play a brief stronger wind-cut sound when they reverse direction.
 - After the stage 1 mid-boss 朝比奈 つばめ takes 9 or more damage, she becomes invincible and retreats to the right side of the screen.
 - When the stage 1 mid-boss retreats, spawn exactly one pink twin-tail tennis club girl and one tall visor-and-glasses tennis club girl with a single ponytail.
 - The twin-tail and visor-and-glasses reinforcements should be about Rin's in-game size and use 3-frame forward animations.
