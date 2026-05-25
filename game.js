@@ -96,6 +96,7 @@
     wave1: 15,
     wave2: 7,
     midBossTarget: 20,
+    midBossRetreatDamage: 9,
     bossPhaseTarget: 15,
     bossDefeatTarget: 25,
   };
@@ -258,6 +259,9 @@
       fireTimer: 0.2,
       moveTimer: 0,
       changed: false,
+      invincible: false,
+      retreating: false,
+      reinforcementsCalled: false,
     };
   }
 
@@ -393,14 +397,26 @@
     state.nextEnemyId += 1;
   }
 
-  function selectRegularEnemyType(wave, spawnIndex) {
-    if (wave === "wave1" && spawnIndex === 1) return "twintail";
-    if (wave === "wave2" && spawnIndex === 1) return "visorGlasses";
+  function spawnReinforcementEnemy(type, y) {
+    const enemyConfig = ENEMY_SPRITE_CONFIG[type];
+    state.enemies.push({
+      id: state.nextEnemyId,
+      x: WIDTH + 28,
+      y,
+      vx: -125,
+      r: enemyConfig.radius,
+      fireTimer: 0.75,
+      type,
+      wave: "midBossReinforcement",
+      spawnIndex: 1,
+      usedSpecial: false,
+    });
+    state.nextEnemyId += 1;
+  }
 
-    const cycle = wave === "wave1"
-      ? ["robotB", "droneA", "robotB", "droneB"]
-      : ["robotB", "droneB", "robotB", "droneA"];
-    return cycle[(spawnIndex - 2 + cycle.length) % cycle.length];
+  function selectRegularEnemyType(wave, spawnIndex) {
+    if (wave === "wave2") return "droneB";
+    return "droneA";
   }
 
   function enemyShoot(enemy, speed, soundKind = "enemyReturn") {
@@ -625,7 +641,14 @@
     } else if (state.phase === "wave2") {
       if (state.phaseTime < phasePlan.wave2) spawnWaveEnemies(dt, 1.05);
       if (state.phaseTime >= phasePlan.wave2 && isStageClearForBoss()) startDialogue("boss", "boss");
-    } else if (state.phase === "midBoss" || state.phase === "boss") {
+    } else if (state.phase === "midBoss") {
+      if (state.boss && state.boss.retreating) {
+        updateMidBossRetreat(dt);
+        if (state.boss.x > WIDTH + 120 && state.enemies.length === 0) setPhase("wave2");
+        return;
+      }
+      bossShoot(dt);
+    } else if (state.phase === "boss") {
       bossShoot(dt);
     }
   }
@@ -639,6 +662,12 @@
     if (state.spawnTimer > 0) return;
     spawnEnemy();
     state.spawnTimer = interval;
+  }
+
+  function updateMidBossRetreat(dt) {
+    if (!state.boss) return;
+    state.boss.x += 230 * dt;
+    state.boss.y += (HEIGHT * 0.5 - state.boss.y) * Math.min(1, dt * 3);
   }
 
   function updateKnives(dt) {
@@ -691,13 +720,7 @@
       }
       if (state.boss && distance(knife, state.boss) < knife.r + state.boss.r) {
         knife.dead = true;
-        state.boss.hp -= 1;
-        burst(knife.x, knife.y, "#ffffff", 5);
-        if (state.boss.hp <= 0) {
-          defeatBoss();
-        } else if (state.boss.rank === 1 && state.boss.hp <= phasePlan.bossPhaseTarget && !state.boss.changed) {
-          triggerBossAttackChange();
-        }
+        damageBoss(1, knife.x, knife.y);
       }
     }
 
@@ -742,14 +765,35 @@
     }
     if (state.boss && !state.player.dashHits.has("boss") && distance(state.player, state.boss) < PLAYER_RADIUS + state.boss.r) {
       state.player.dashHits.add("boss");
-      state.boss.hp -= DASH_DAMAGE;
-      burst(state.boss.x, state.boss.y, "#7ee8ff", 24);
-      if (state.boss.hp <= 0) {
-        defeatBoss();
-      } else if (state.boss.rank === 1 && state.boss.hp <= phasePlan.bossPhaseTarget && !state.boss.changed) {
-        triggerBossAttackChange();
-      }
+      damageBoss(DASH_DAMAGE, state.boss.x, state.boss.y, "#7ee8ff", 24);
     }
+  }
+
+  function damageBoss(amount, x, y, color = "#ffffff", count = 5) {
+    if (!state.boss || state.boss.invincible) return;
+    state.boss.hp -= amount;
+    burst(x, y, color, count);
+    if (state.phase === "midBoss" && state.boss.hp <= phasePlan.midBossTarget - phasePlan.midBossRetreatDamage) {
+      triggerMidBossReinforcements();
+      return;
+    }
+    if (state.boss.hp <= 0) {
+      defeatBoss();
+    } else if (state.boss.rank === 1 && state.boss.hp <= phasePlan.bossPhaseTarget && !state.boss.changed) {
+      triggerBossAttackChange();
+    }
+  }
+
+  function triggerMidBossReinforcements() {
+    if (!state.boss || state.boss.reinforcementsCalled) return;
+    state.boss.reinforcementsCalled = true;
+    state.boss.invincible = true;
+    state.boss.retreating = true;
+    state.boss.fireTimer = 999;
+    state.enemyBullets = [];
+    state.message = "朝比奈 撤退";
+    spawnReinforcementEnemy("twintail", HEIGHT * 0.34);
+    spawnReinforcementEnemy("visorGlasses", HEIGHT * 0.66);
   }
 
   function triggerBossAttackChange() {
