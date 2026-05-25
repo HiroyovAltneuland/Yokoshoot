@@ -33,11 +33,14 @@
   const PLAYER_SPRITE_ROWS = 4;
   const PLAYER_SPRITE_DRAW_WIDTH = 132;
   const PLAYER_SPRITE_DRAW_HEIGHT = 99;
+  const PLAYER_SPRITE_TOP_EXTENT = Math.ceil(PLAYER_SPRITE_DRAW_HEIGHT * 0.58) + 2;
+  const PLAYER_SPRITE_BOTTOM_EXTENT = Math.ceil(PLAYER_SPRITE_DRAW_HEIGHT * 0.42) + 2;
   const BOSS_SPRITE_COLUMNS = 3;
   const BOSS_SPRITE_ROWS = 2;
   const BOSS_SPRITE_DRAW_SIZE = 172;
   const ENEMY_SPRITE_COLUMNS = 3;
   const ENEMY_SPRITE_ROWS = 5;
+  const ENEMY_SPRITE_SOURCE_INSET = 4;
   const ENEMY_SPRITE_CONFIG = {
     twintail: { row: 0, width: 132, height: 99, radius: 18, offsetX: 0, offsetY: 0 },
     visorGlasses: { row: 1, width: 132, height: 99, radius: 18, offsetX: 0, offsetY: 0 },
@@ -625,7 +628,11 @@
     state.player.moveX = dx;
     state.player.moveY = dy;
     state.player.x = clamp(state.player.x + (dx / len) * speed * dt, 34, WIDTH * 0.48);
-    state.player.y = clamp(state.player.y + (dy / len) * speed * dt, 34, HEIGHT - 34);
+    state.player.y = clamp(
+      state.player.y + (dy / len) * speed * dt,
+      PLAYER_SPRITE_TOP_EXTENT,
+      HEIGHT - PLAYER_SPRITE_BOTTOM_EXTENT
+    );
 
     updateCharge(dt);
 
@@ -1146,10 +1153,10 @@
     ctx.scale(-1, 1);
     ctx.drawImage(
       stageOneEnemySprite,
-      frame * sourceWidth,
-      config.row * sourceHeight,
-      sourceWidth,
-      sourceHeight,
+      frame * sourceWidth + ENEMY_SPRITE_SOURCE_INSET,
+      config.row * sourceHeight + ENEMY_SPRITE_SOURCE_INSET,
+      sourceWidth - ENEMY_SPRITE_SOURCE_INSET * 2,
+      sourceHeight - ENEMY_SPRITE_SOURCE_INSET * 2,
       -config.width * 0.5 + config.offsetX,
       -config.height * 0.58 + config.offsetY,
       config.width,
