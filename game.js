@@ -14,6 +14,7 @@
   const enemyPortrait = document.getElementById("enemy-portrait");
   const AudioContextClass = window.AudioContext || window.webkitAudioContext;
   let audioContext = null;
+  let droneLoop = null;
 
   const WIDTH = canvas.width;
   const HEIGHT = canvas.height;
@@ -277,8 +278,9 @@
     if (!audio) return;
 
     if (kind === "knife") {
-      playNoiseHit(audio, 0.09, 0.045, "highpass", 2500, 0.08);
-      playToneSweep(audio, 0.09, 880, 1520, 0.025, "triangle");
+      playNoiseHit(audio, 0.055, 0.03, "highpass", 5200, 0.105);
+      playToneSweep(audio, 0.05, 1800, 4200, 0.038, "triangle");
+      window.setTimeout(() => playNoiseHit(audio, 0.035, 0.02, "highpass", 7600, 0.045), 18);
     } else if (kind === "bossSmash") {
       playNoiseHit(audio, 0.16, 0.12, "bandpass", 720, 0.2);
       playToneSweep(audio, 0.14, 170, 86, 0.11, "sine");
@@ -329,8 +331,73 @@
   function playMotorStartSound() {
     const audio = ensureAudioContext();
     if (!audio) return;
-    playNoiseHit(audio, 0.5, 0.42, "highpass", 950, 0.045);
-    playToneSweep(audio, 0.52, 180, 520, 0.035, "sawtooth");
+    playNoiseHit(audio, 0.72, 0.62, "bandpass", 360, 0.08);
+    playToneSweep(audio, 0.68, 70, 210, 0.055, "sawtooth");
+    window.setTimeout(() => playToneSweep(audio, 0.32, 95, 260, 0.032, "square"), 135);
+    window.setTimeout(() => playNoiseHit(audio, 0.24, 0.2, "lowpass", 520, 0.05), 250);
+  }
+
+  function playDroneTurnSound() {
+    const audio = ensureAudioContext();
+    if (!audio) return;
+    playNoiseHit(audio, 0.18, 0.12, "highpass", 2800, 0.11);
+    playToneSweep(audio, 0.14, 520, 980, 0.035, "sawtooth");
+  }
+
+  function updateDroneLoopSound() {
+    const audio = ensureAudioContext();
+    if (!audio) return;
+    const droneCount = state.enemies.filter((enemy) => isDroneEnemy(enemy)).length;
+    if (droneCount > 0) {
+      if (!droneLoop) droneLoop = createDroneLoop(audio);
+      const now = audio.currentTime;
+      const volume = Math.min(0.09, 0.035 + droneCount * 0.018);
+      droneLoop.gain.gain.cancelScheduledValues(now);
+      droneLoop.gain.gain.setTargetAtTime(volume, now, 0.08);
+      droneLoop.filter.frequency.setTargetAtTime(520 + droneCount * 80, now, 0.12);
+    } else if (droneLoop) {
+      const now = audio.currentTime;
+      droneLoop.gain.gain.cancelScheduledValues(now);
+      droneLoop.gain.gain.setTargetAtTime(0.0001, now, 0.16);
+    }
+  }
+
+  function fadeOutDroneLoopSound() {
+    if (!droneLoop || !audioContext) return;
+    const now = audioContext.currentTime;
+    droneLoop.gain.gain.cancelScheduledValues(now);
+    droneLoop.gain.gain.setTargetAtTime(0.0001, now, 0.12);
+  }
+
+  function createDroneLoop(audio) {
+    const sampleCount = Math.floor(audio.sampleRate * 1.2);
+    const buffer = audio.createBuffer(1, sampleCount, audio.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < sampleCount; i += 1) data[i] = Math.random() * 2 - 1;
+
+    const noise = audio.createBufferSource();
+    const filter = audio.createBiquadFilter();
+    const gain = audio.createGain();
+    const oscillator = audio.createOscillator();
+    const oscillatorGain = audio.createGain();
+    const now = audio.currentTime;
+    noise.buffer = buffer;
+    noise.loop = true;
+    filter.type = "bandpass";
+    filter.frequency.setValueAtTime(560, now);
+    filter.Q.setValueAtTime(0.85, now);
+    gain.gain.setValueAtTime(0.0001, now);
+    oscillator.type = "sawtooth";
+    oscillator.frequency.setValueAtTime(38, now);
+    oscillatorGain.gain.setValueAtTime(0.018, now);
+    noise.connect(filter);
+    filter.connect(gain);
+    oscillator.connect(oscillatorGain);
+    oscillatorGain.connect(gain);
+    gain.connect(audio.destination);
+    noise.start(now);
+    oscillator.start(now);
+    return { noise, oscillator, filter, gain };
   }
 
   function playChargeCompleteSound() {
@@ -469,12 +536,21 @@
     } else if (enemy.wave === "wave2") {
       shootEightWay(enemy, 175);
       enemy.usedSpecial = true;
-      enemy.vx = Math.abs(enemy.vx);
+      reverseEnemyDirection(enemy);
     } else {
       shootStraightTwoWay(enemy, 230);
       enemy.usedSpecial = true;
-      enemy.vx = Math.abs(enemy.vx);
+      reverseEnemyDirection(enemy);
     }
+  }
+
+  function reverseEnemyDirection(enemy) {
+    if (enemy.vx < 0 && isDroneEnemy(enemy)) playDroneTurnSound();
+    enemy.vx = Math.abs(enemy.vx);
+  }
+
+  function isDroneEnemy(enemy) {
+    return enemy.type === "droneA" || enemy.type === "droneB";
   }
 
   function bossShoot(dt) {
@@ -509,9 +585,13 @@
   function update(dt) {
     if (state.mode === "dialogue") {
       updateDialogue(dt);
+      fadeOutDroneLoopSound();
       return;
     }
-    if (state.mode !== "playing") return;
+    if (state.mode !== "playing") {
+      fadeOutDroneLoopSound();
+      return;
+    }
     state.elapsed += dt;
     state.phaseTime += dt;
     state.fireCooldown -= dt;
@@ -525,6 +605,7 @@
     updateEnemyBullets(dt);
     updateParticles(dt);
     checkCollisions();
+    updateDroneLoopSound();
   }
 
   function updatePlayer(dt) {
