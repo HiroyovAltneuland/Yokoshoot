@@ -72,9 +72,9 @@
       { x: 0, y: 0 },
     ],
     idle: [
-      { x: -8, y: 2 },
-      { x: 9, y: 2 },
-      { x: 17, y: 2 },
+      { x: 0, y: 0 },
+      { x: 0, y: 0 },
+      { x: 0, y: 0 },
     ],
   };
   const BOSS_SPRITE_FRAME_OFFSETS = {
