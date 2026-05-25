@@ -29,6 +29,7 @@
   const DASH_SPEED = PLAYER_SPEED * 3;
   const DASH_DAMAGE = 9;
   const DASH_COOLDOWN_SECONDS = 4;
+  const DRONE_LOOP_BASE_VOLUME = 0.026;
   const PLAYER_SPRITE_COLUMNS = 3;
   const PLAYER_SPRITE_ROWS = 4;
   const PLAYER_SPRITE_DRAW_WIDTH = 132;
@@ -348,11 +349,12 @@
       activeDroneIds.add(enemy.id);
       if (!droneLoops.has(enemy.id)) droneLoops.set(enemy.id, createDroneLoop(audio, enemy.id));
       const loop = droneLoops.get(enemy.id);
+      const volume = droneLoopVolume(enemy);
       loop.stopping = false;
       loop.gain.gain.cancelScheduledValues(now);
-      loop.gain.gain.setTargetAtTime(0.027, now, 0.08);
-      loop.filter.frequency.setTargetAtTime(480 + (enemy.id % 5) * 35, now, 0.12);
-      loop.oscillator.frequency.setTargetAtTime(32 + (enemy.id % 4) * 2.5, now, 0.12);
+      loop.gain.gain.setTargetAtTime(volume, now, 0.08);
+      loop.filter.frequency.setTargetAtTime(260 + (enemy.id % 5) * 18, now, 0.12);
+      loop.oscillator.frequency.setTargetAtTime(96 + (enemy.id % 4) * 7, now, 0.12);
     }
     for (const [id, loop] of droneLoops) {
       if (activeDroneIds.has(id)) continue;
@@ -378,6 +380,13 @@
   function fadeDroneLoop(loop, now, timeConstant) {
     loop.gain.gain.cancelScheduledValues(now);
     loop.gain.gain.setTargetAtTime(0.0001, now, timeConstant);
+  }
+
+  function droneLoopVolume(enemy) {
+    const distanceToRin = Math.hypot(enemy.x - state.player.x, enemy.y - state.player.y);
+    if (distanceToRin >= WIDTH / 2) return DRONE_LOOP_BASE_VOLUME * 0.3;
+    const closeness = 1 - distanceToRin / (WIDTH / 2);
+    return DRONE_LOOP_BASE_VOLUME * (0.3 + closeness * 0.7);
   }
 
   function stopDroneLoop(id) {
@@ -407,13 +416,13 @@
     const now = audio.currentTime;
     noise.buffer = buffer;
     noise.loop = true;
-    filter.type = "bandpass";
-    filter.frequency.setValueAtTime(480 + (seed % 5) * 35, now);
-    filter.Q.setValueAtTime(0.85, now);
+    filter.type = "lowpass";
+    filter.frequency.setValueAtTime(260 + (seed % 5) * 18, now);
+    filter.Q.setValueAtTime(1.4, now);
     gain.gain.setValueAtTime(0.0001, now);
     oscillator.type = "sawtooth";
-    oscillator.frequency.setValueAtTime(32 + (seed % 4) * 2.5, now);
-    oscillatorGain.gain.setValueAtTime(0.009, now);
+    oscillator.frequency.setValueAtTime(96 + (seed % 4) * 7, now);
+    oscillatorGain.gain.setValueAtTime(0.014, now);
     noise.connect(filter);
     filter.connect(gain);
     oscillator.connect(oscillatorGain);

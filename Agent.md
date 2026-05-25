@@ -152,7 +152,8 @@ The player character is:
 - Regular enemies are defeated by 1 normal attack hit.
 - Stage 1 regular enemies 1 should use only the smaller umpire drone A sprite.
 - Stage 1 regular enemies 2 should use only the smaller umpire drone B sprite.
-- Drone-type regular enemies should emit one continuous fan-like loop per existing drone, at about half the previous per-drone loudness.
+- Drone-type regular enemies should emit one continuous small-motor-like loop per existing drone.
+- Each drone loop should get louder as the drone gets closer to Rin; if it is farther than half the screen width from Rin, use 30% volume.
 - Drone-type regular enemies should play a brief stronger wind-cut sound when they reverse direction.
 - After the stage 1 mid-boss 朝比奈 つばめ takes 9 or more damage, she becomes invincible and retreats to the right side of the screen.
 - When the stage 1 mid-boss retreats, spawn exactly one pink twin-tail tennis club girl and one tall visor-and-glasses tennis club girl with a single ponytail.
