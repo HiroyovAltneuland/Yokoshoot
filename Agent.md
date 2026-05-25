@@ -156,7 +156,7 @@ The player character is:
 - Drone-type regular enemies should play a brief stronger wind-cut sound when they reverse direction.
 - After the stage 1 mid-boss 朝比奈 つばめ takes 9 or more damage, she becomes invincible and retreats to the right side of the screen.
 - When the stage 1 mid-boss retreats, spawn exactly one pink twin-tail tennis club girl and one tall visor-and-glasses tennis club girl with a single ponytail.
-- The twin-tail and visor-and-glasses reinforcements should be about Rin's in-game size and use 3-frame forward animations.
+- The twin-tail and visor-and-glasses reinforcements should be about Rin's in-game size, use 3-frame forward animations, and keep their head-to-body proportions close to Rin rather than a chibi look.
 - Stage 1 should move from the mid-boss encounter to regular enemies 2 after both reinforcements are defeated or leave the screen.
 - Umpire drone A and B should animate their propellers rotating across 3 frames.
 - Stage 1 should move to the mid-boss or boss only after the current regular enemies are defeated or leave the screen, and their remaining tennis balls are gone.
