@@ -197,6 +197,8 @@ The player character is:
 - Generate poses using the largest silhouette in the animation as the padding baseline so no frame clips when rendered in-game.
 - After chroma-key removal, clear a small transparent safety margin around every cell edge to remove stray pixels.
 - Validate each sheet by checking transparent corners, per-cell alpha bounds, apparent height consistency, and stable anchor positions.
+- Also validate the in-game render result: source rectangles, draw offsets, scaling, and movement clamps must leave the full sprite visible on screen.
+- Avoid sampling neighboring sprite cells during canvas rendering by using safe source insets or sufficient transparent gutters between cells.
 
 ## Dialogue Direction
 

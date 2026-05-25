@@ -17,6 +17,8 @@ Use this skill when creating or reviewing raster sprite sheets for game characte
 - Animate mostly secondary motion: hair, scarf, skirt, propellers, baskets, weapon sway, cloth, or effects.
 - Use the largest silhouette in the animation as the padding baseline so no frame clips when rendered in-game.
 - After chroma-key removal, clear a small transparent safety margin around every cell edge to remove stray pixels.
+- Validate runtime drawing, not only PNG pixels: source rectangles, draw offsets, scale factors, and movement clamps must keep the full sprite visible in game.
+- When a sprite sheet is sampled by canvas or another renderer, use safe source insets or generous transparent gutters so neighboring cells cannot bleed into the rendered sprite.
 
 ## Validation Checklist
 
@@ -26,4 +28,6 @@ Use this skill when creating or reviewing raster sprite sheets for game characte
 - Apparent height and foot position are stable for humanoid frames.
 - Head and torso anchors do not drift unless the animation intentionally moves the whole body.
 - Motion reads clearly when sampled at the game's intended frame rate and draw size.
+- The sprite remains fully visible at gameplay movement bounds.
+- Rendered frames do not show neighboring cells, chroma-key fringe, or transparent-pixel color bleed.
 
