@@ -183,6 +183,7 @@ The player character is:
 - Rin's in-game sprite uses a late-1990s Japanese horror adventure mood: subdued, semi-realistic pixel art with four 3-frame states for forward movement, backward movement, charged dash, and neutral idle.
 - Rin's neutral 3-frame animation should keep her head horizontally stable while her hair, scarf, and skirt flutter like she is taking a large quiet breath.
 - Rin's neutral stance should keep her feet closed.
+- Rin's charged dash row should include a visible afterimage or speed trail behind her body.
 - When regenerating Rin sprites, keep consistent cell padding and stable apparent character height across all frames.
 - Moving straight up or straight down should use Rin's forward movement sprite row.
 - Rin's charge-ready effect and charged dash trail use smooth circular effects rather than pixel blocks.
@@ -196,8 +197,14 @@ The player character is:
 - For humanoid sprites, align the apparent foot position and character height across all frames.
 - For idle and walk loops, keep the head and torso anchor visually stable; animate secondary motion such as hair, scarf, skirt, propellers, baskets, or effects.
 - Generate poses using the largest silhouette in the animation as the padding baseline so no frame clips when rendered in-game.
+- Do not trust an AI-generated sprite grid by eye alone. Generated rows and columns can drift, overlap, or contain fragments from neighboring frames.
+- If frames cross nominal cell boundaries, remove the chroma key first, then extract visible connected components and repack each frame into a clean equal-size output grid.
+- Preserve intentional secondary effects such as dash afterimages, speed trails, hair streaks, cloth motion, propellers, and baskets by grouping nearby or connected components with the body.
+- Do not clear fixed cell margins blindly after packing; it can cut off hair, shoes, and effects. Prefer measured packing with target padding and then validate the result.
 - After chroma-key removal, clear a small transparent safety margin around every cell edge to remove stray pixels.
 - Validate each sheet by checking transparent corners, per-cell alpha bounds, apparent height consistency, and stable anchor positions.
+- Inspect both a bright-background grid preview and a black-background preview before accepting a transparent sprite sheet.
+- Measure idle head horizontal positions before adding draw offsets; prefer fixing the packed source over compensating with per-frame offsets.
 - Also validate the in-game render result: source rectangles, draw offsets, scaling, and movement clamps must leave the full sprite visible on screen.
 - Avoid sampling neighboring sprite cells during canvas rendering by using safe source insets or sufficient transparent gutters between cells.
 
