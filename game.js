@@ -14,7 +14,7 @@
   const enemyPortrait = document.getElementById("enemy-portrait");
   const AudioContextClass = window.AudioContext || window.webkitAudioContext;
   let audioContext = null;
-  let droneLoop = null;
+  const droneLoops = new Map();
 
   const WIDTH = canvas.width;
   const HEIGHT = canvas.height;
@@ -281,9 +281,9 @@
     if (!audio) return;
 
     if (kind === "knife") {
-      playNoiseHit(audio, 0.055, 0.03, "highpass", 5200, 0.105);
-      playToneSweep(audio, 0.05, 1800, 4200, 0.038, "triangle");
-      window.setTimeout(() => playNoiseHit(audio, 0.035, 0.02, "highpass", 7600, 0.045), 18);
+      playNoiseHit(audio, 0.11, 0.08, "highpass", 1800, 0.13);
+      playToneSweep(audio, 0.12, 340, 1260, 0.06, "triangle");
+      window.setTimeout(() => playNoiseHit(audio, 0.06, 0.035, "bandpass", 3600, 0.055), 36);
     } else if (kind === "bossSmash") {
       playNoiseHit(audio, 0.16, 0.12, "bandpass", 720, 0.2);
       playToneSweep(audio, 0.14, 170, 86, 0.11, "sine");
@@ -331,15 +331,6 @@
     oscillator.stop(now + duration);
   }
 
-  function playMotorStartSound() {
-    const audio = ensureAudioContext();
-    if (!audio) return;
-    playNoiseHit(audio, 0.72, 0.62, "bandpass", 360, 0.08);
-    playToneSweep(audio, 0.68, 70, 210, 0.055, "sawtooth");
-    window.setTimeout(() => playToneSweep(audio, 0.32, 95, 260, 0.032, "square"), 135);
-    window.setTimeout(() => playNoiseHit(audio, 0.24, 0.2, "lowpass", 520, 0.05), 250);
-  }
-
   function playDroneTurnSound() {
     const audio = ensureAudioContext();
     if (!audio) return;
@@ -350,29 +341,59 @@
   function updateDroneLoopSound() {
     const audio = ensureAudioContext();
     if (!audio) return;
-    const droneCount = state.enemies.filter((enemy) => isDroneEnemy(enemy)).length;
-    if (droneCount > 0) {
-      if (!droneLoop) droneLoop = createDroneLoop(audio);
-      const now = audio.currentTime;
-      const volume = Math.min(0.09, 0.035 + droneCount * 0.018);
-      droneLoop.gain.gain.cancelScheduledValues(now);
-      droneLoop.gain.gain.setTargetAtTime(volume, now, 0.08);
-      droneLoop.filter.frequency.setTargetAtTime(520 + droneCount * 80, now, 0.12);
-    } else if (droneLoop) {
-      const now = audio.currentTime;
-      droneLoop.gain.gain.cancelScheduledValues(now);
-      droneLoop.gain.gain.setTargetAtTime(0.0001, now, 0.16);
+    const now = audio.currentTime;
+    const activeDroneIds = new Set();
+    for (const enemy of state.enemies) {
+      if (!isDroneEnemy(enemy)) continue;
+      activeDroneIds.add(enemy.id);
+      if (!droneLoops.has(enemy.id)) droneLoops.set(enemy.id, createDroneLoop(audio, enemy.id));
+      const loop = droneLoops.get(enemy.id);
+      loop.stopping = false;
+      loop.gain.gain.cancelScheduledValues(now);
+      loop.gain.gain.setTargetAtTime(0.027, now, 0.08);
+      loop.filter.frequency.setTargetAtTime(480 + (enemy.id % 5) * 35, now, 0.12);
+      loop.oscillator.frequency.setTargetAtTime(32 + (enemy.id % 4) * 2.5, now, 0.12);
+    }
+    for (const [id, loop] of droneLoops) {
+      if (activeDroneIds.has(id)) continue;
+      scheduleDroneLoopStop(id, loop, now);
     }
   }
 
   function fadeOutDroneLoopSound() {
-    if (!droneLoop || !audioContext) return;
+    if (!audioContext) return;
     const now = audioContext.currentTime;
-    droneLoop.gain.gain.cancelScheduledValues(now);
-    droneLoop.gain.gain.setTargetAtTime(0.0001, now, 0.12);
+    for (const [id, loop] of droneLoops) {
+      scheduleDroneLoopStop(id, loop, now);
+    }
   }
 
-  function createDroneLoop(audio) {
+  function scheduleDroneLoopStop(id, loop, now) {
+    if (loop.stopping) return;
+    loop.stopping = true;
+    fadeDroneLoop(loop, now, 0.12);
+    window.setTimeout(() => stopDroneLoop(id), 450);
+  }
+
+  function fadeDroneLoop(loop, now, timeConstant) {
+    loop.gain.gain.cancelScheduledValues(now);
+    loop.gain.gain.setTargetAtTime(0.0001, now, timeConstant);
+  }
+
+  function stopDroneLoop(id) {
+    const loop = droneLoops.get(id);
+    if (!loop) return;
+    const now = audioContext ? audioContext.currentTime : 0;
+    try {
+      loop.noise.stop(now);
+      loop.oscillator.stop(now);
+    } catch (error) {
+      // The node may already have been stopped by a previous cleanup tick.
+    }
+    droneLoops.delete(id);
+  }
+
+  function createDroneLoop(audio, seed) {
     const sampleCount = Math.floor(audio.sampleRate * 1.2);
     const buffer = audio.createBuffer(1, sampleCount, audio.sampleRate);
     const data = buffer.getChannelData(0);
@@ -387,12 +408,12 @@
     noise.buffer = buffer;
     noise.loop = true;
     filter.type = "bandpass";
-    filter.frequency.setValueAtTime(560, now);
+    filter.frequency.setValueAtTime(480 + (seed % 5) * 35, now);
     filter.Q.setValueAtTime(0.85, now);
     gain.gain.setValueAtTime(0.0001, now);
     oscillator.type = "sawtooth";
-    oscillator.frequency.setValueAtTime(38, now);
-    oscillatorGain.gain.setValueAtTime(0.018, now);
+    oscillator.frequency.setValueAtTime(32 + (seed % 4) * 2.5, now);
+    oscillatorGain.gain.setValueAtTime(0.009, now);
     noise.connect(filter);
     filter.connect(gain);
     oscillator.connect(oscillatorGain);
@@ -400,15 +421,16 @@
     gain.connect(audio.destination);
     noise.start(now);
     oscillator.start(now);
-    return { noise, oscillator, filter, gain };
+    return { noise, oscillator, filter, gain, stopping: false };
   }
 
   function playChargeCompleteSound() {
     const audio = ensureAudioContext();
     if (!audio) return;
-    playToneSweep(audio, 0.05, 620, 420, 0.09, "square");
-    window.setTimeout(() => playToneSweep(audio, 0.06, 940, 700, 0.075, "square"), 65);
-    window.setTimeout(() => playNoiseHit(audio, 0.08, 0.04, "highpass", 3200, 0.04), 95);
+    playNoiseHit(audio, 0.34, 0.28, "bandpass", 900, 0.055);
+    playToneSweep(audio, 0.38, 220, 980, 0.07, "sawtooth");
+    window.setTimeout(() => playToneSweep(audio, 0.2, 620, 1480, 0.045, "triangle"), 130);
+    window.setTimeout(() => playNoiseHit(audio, 0.16, 0.08, "highpass", 2600, 0.04), 260);
   }
 
   function playDashLaunchSound() {
@@ -651,7 +673,6 @@
       return;
     }
     if (charging) {
-      if (!state.player.wasCharging) playMotorStartSound();
       state.player.chargeTime += dt;
       if (state.player.chargeTime >= CHARGE_SECONDS && !state.player.chargeReadySoundPlayed) {
         playChargeCompleteSound();
