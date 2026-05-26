@@ -96,6 +96,7 @@ The player character is:
 - The shot visual should read as a small blade or throwing knife.
 - The player shot sound effect should feel like a small blade cutting through air.
 - Rin's damage hitbox should be a small waist-centered area only; visual body overlap outside the waist should not count as damage.
+- Immediately after taking damage, Rin should show a dedicated flinch sprite for about 0.5 seconds and be knocked back about one character width to the left.
 
 ### Charged Dash Attack
 
@@ -182,7 +183,8 @@ The player character is:
 - The in-game canvas should always preserve its 16:9 aspect ratio across resolutions; unused viewport space should be black letterbox/pillarbox bars.
 - Prefer blocky silhouettes, hard edges, and stepped shapes in canvas gameplay rendering.
 - Avoid smooth gradients or round vector-like character shapes in in-game rendering unless there is a strong reason.
-- Rin's in-game sprite uses a late-1990s Japanese horror adventure mood: subdued, semi-realistic pixel art with four 3-frame states for forward movement, backward movement, charged dash, and neutral idle.
+- Rin's in-game sprite uses a late-1990s Japanese horror adventure mood: subdued, semi-realistic pixel art with five 3-frame states for forward movement, backward movement, charged dash, neutral idle, and damage flinch.
+- Rin's forward movement row should read as walking forward, with left and right feet alternating across the 3 animation frames.
 - Rin's neutral 3-frame animation should keep her head horizontally stable while her hair, scarf, and skirt flutter like she is taking a large quiet breath.
 - Rin's neutral stance should keep her feet closed.
 - Rin's charged dash row should include a visible afterimage or speed trail behind her body.
