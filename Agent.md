@@ -135,7 +135,7 @@ The player character is:
 - Rin's charge completion sound should feel like a motor spinning up.
 - Regular enemy shot sound effects should feel like tennis return hits.
 - Boss shot sound effects should feel like tennis smash hits.
-- Rin's damage voice should be a restrained, cool female `くっ` with slight pain.
+- Rin's damage voice should be a restrained, cool female `くぅっ` with slightly strained pain.
 - Rin's charged dash should play a short cool female `ハッ`, then a strong ground-kick `ドン`.
 - Defeating stage 1 mid-boss 朝比奈つばめ should play a lively female `本気なの！？`.
 - Stage 1 boss 朝比奈つばめ's attack change should play a lively female `通さない！`.
@@ -155,7 +155,7 @@ The player character is:
 - Drone-type regular enemies should emit one continuous small-motor-like loop per existing drone.
 - Each drone loop should get louder as the drone gets closer to Rin; if it is farther than half the screen width from Rin, use 30% volume.
 - Drone-type regular enemies should play a brief stronger wind-cut sound when they reverse direction.
-- After the stage 1 mid-boss 朝比奈 つばめ takes 9 or more damage, she becomes invincible and retreats to the right side of the screen.
+- After the stage 1 mid-boss 朝比奈 つばめ takes 10 or more damage, she becomes invincible and retreats to the right side of the screen.
 - When the stage 1 mid-boss retreats, spawn exactly one pink twin-tail tennis club girl and one tall visor-and-glasses tennis club girl with a single ponytail.
 - The twin-tail and visor-and-glasses reinforcements should be about Rin's in-game size, use 3-frame forward animations, and keep their head-to-body proportions close to Rin rather than a chibi look.
 - The twin-tail and visor-and-glasses reinforcements should lean strongly forward and read as walking or running with alternating left/right foot placement across their 3 animation frames.

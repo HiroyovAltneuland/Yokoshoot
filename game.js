@@ -933,7 +933,7 @@
   }
 
   function damagePlayer() {
-    playVoiceLine("くっ", "cool");
+    playVoiceLine("くぅっ", "cool");
     state.player.lives -= 1;
     state.player.invincible = 1.4;
     burst(state.player.x, state.player.y, "#ff5278", 18);
