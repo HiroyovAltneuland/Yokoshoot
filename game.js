@@ -22,6 +22,8 @@
   const PLAYER_RADIUS = 15;
   const PLAYER_HURT_RADIUS = 8;
   const PLAYER_WAIST_OFFSET_Y = 8;
+  const PLAYER_FLINCH_SECONDS = 0.5;
+  const PLAYER_KNOCKBACK_DISTANCE = 132;
   const DIALOGUE_AUTO_SECONDS = 2.4;
   const MID_BOSS_DIALOGUE_AUTO_SECONDS = DIALOGUE_AUTO_SECONDS + 1;
   const CHARGE_SECONDS = 1;
@@ -31,7 +33,7 @@
   const DASH_COOLDOWN_SECONDS = 4;
   const DRONE_LOOP_BASE_VOLUME = 0.026;
   const PLAYER_SPRITE_COLUMNS = 3;
-  const PLAYER_SPRITE_ROWS = 4;
+  const PLAYER_SPRITE_ROWS = 5;
   const PLAYER_SPRITE_DRAW_WIDTH = 132;
   const PLAYER_SPRITE_DRAW_HEIGHT = 99;
   const PLAYER_SPRITE_TOP_EXTENT = Math.ceil(PLAYER_SPRITE_DRAW_HEIGHT * 0.58) + 2;
@@ -54,6 +56,7 @@
     backward: 1,
     dash: 2,
     idle: 3,
+    flinch: 4,
   };
   const PLAYER_SPRITE_FRAME_OFFSETS = {
     forward: [
@@ -72,6 +75,11 @@
       { x: 0, y: 0 },
     ],
     idle: [
+      { x: 0, y: 0 },
+      { x: 0, y: 0 },
+      { x: 0, y: 0 },
+    ],
+    flinch: [
       { x: 0, y: 0 },
       { x: 0, y: 0 },
       { x: 0, y: 0 },
@@ -147,6 +155,7 @@
       y: HEIGHT / 2,
       lives: 3,
       invincible: 0,
+      flinchTime: 0,
       chargeTime: 0,
       dashCooldown: 0,
       wasCharging: false,
@@ -630,6 +639,7 @@
     state.phaseTime += dt;
     state.fireCooldown -= dt;
     state.player.invincible = Math.max(0, state.player.invincible - dt);
+    state.player.flinchTime = Math.max(0, state.player.flinchTime - dt);
     state.player.dashCooldown = Math.max(0, state.player.dashCooldown - dt);
 
     updatePlayer(dt);
@@ -933,10 +943,14 @@
   }
 
   function damagePlayer() {
+    const hitX = state.player.x;
+    const hitY = state.player.y;
     playVoiceLine("くぅっ", "cool");
     state.player.lives -= 1;
     state.player.invincible = 1.4;
-    burst(state.player.x, state.player.y, "#ff5278", 18);
+    state.player.flinchTime = PLAYER_FLINCH_SECONDS;
+    state.player.x = clamp(state.player.x - PLAYER_KNOCKBACK_DISTANCE, 34, WIDTH * 0.48);
+    burst(hitX, hitY, "#ff5278", 18);
     if (state.player.lives <= 0) {
       state.mode = "gameOver";
       state.message = "ゲームオーバー";
@@ -1062,7 +1076,8 @@
   function drawPlayer() {
     const dashActive = state.player.dashState !== "none";
     const flickerRate = dashActive ? 4 : 14;
-    const flicker = state.player.invincible > 0 && Math.floor(state.elapsed * flickerRate) % 2 === 0;
+    const flicker =
+      state.player.flinchTime <= 0 && state.player.invincible > 0 && Math.floor(state.elapsed * flickerRate) % 2 === 0;
     if (flicker) return;
     ctx.save();
     ctx.translate(state.player.x, state.player.y);
@@ -1112,6 +1127,7 @@
   }
 
   function getPlayerSpriteState(dashActive) {
+    if (state.player.flinchTime > 0) return "flinch";
     if (state.player.dashState === "dash") return "dash";
     if (state.player.dashState === "return") return "backward";
     if (state.player.moveX > 0) return "forward";
