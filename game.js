@@ -101,7 +101,7 @@
     wave1: 15,
     wave2: 7,
     midBossTarget: 20,
-    midBossRetreatDamage: 9,
+    midBossRetreatDamage: 10,
     bossPhaseTarget: 15,
     bossDefeatTarget: 25,
   };
