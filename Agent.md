@@ -207,6 +207,9 @@ The player character is:
 - Measure idle head horizontal positions before adding draw offsets; prefer fixing the packed source over compensating with per-frame offsets.
 - Also validate the in-game render result: source rectangles, draw offsets, scaling, and movement clamps must leave the full sprite visible on screen.
 - Avoid sampling neighboring sprite cells during canvas rendering by using safe source insets or sufficient transparent gutters between cells.
+- Use `tools/sprite-tool.ps1` for repeatable sprite checks and cleanup before writing one-off image-processing code.
+- Use `sprite-tool.ps1 -Mode preview` to create white and black grid previews, `-Mode validate` to check grid size, padding, transparent RGB leaks, and target-row black backgrounds, `-Mode clean-black` to remove unintended pure-black row backgrounds, and `-Mode pack-chroma` to repack generated chroma-key sheets into equal cells.
+- The sprite tool speeds up mechanical checks, but final acceptance still requires visual inspection of previews, especially for hair, shoes, propellers, dash trails, and thin effects.
 
 ## Dialogue Direction
 

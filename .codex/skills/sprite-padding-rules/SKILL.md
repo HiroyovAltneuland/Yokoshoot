@@ -38,6 +38,21 @@ Use this skill when creating or reviewing raster sprite sheets for game characte
 - The sprite remains fully visible at gameplay movement bounds.
 - Rendered frames do not show neighboring cells, chroma-key fringe, or transparent-pixel color bleed.
 
+## Yokoshoot Sprite Tool
+
+Use `tools/sprite-tool.ps1` for the repeatable parts before doing one-off manual image work.
+
+- Create white and black grid previews:
+  `powershell -ExecutionPolicy Bypass -File tools\sprite-tool.ps1 -Mode preview -Path assets\stage1-enemy-sprite-sheet.png -Columns 3 -Rows 5 -OutDir tmp -Prefix stage1-enemy`
+- Validate grid size, transparent RGB, padding, and optional target-row black backgrounds:
+  `powershell -ExecutionPolicy Bypass -File tools\sprite-tool.ps1 -Mode validate -Path assets\stage1-enemy-sprite-sheet.png -Columns 3 -Rows 5 -MinPadding 6 -TargetRows 0,1 -BlackThreshold 2`
+- Remove unintended pure-black backgrounds from selected rows:
+  `powershell -ExecutionPolicy Bypass -File tools\sprite-tool.ps1 -Mode clean-black -Path input.png -Output output.png -Columns 3 -Rows 5 -TargetRows 0,1`
+- Repack a generated chroma-key sheet into clean equal cells:
+  `powershell -ExecutionPolicy Bypass -File tools\sprite-tool.ps1 -Mode pack-chroma -Path generated.png -Output packed.png -Columns 3 -Rows 4 -CellWidth 418 -CellHeight 313 -Margin 24`
+
+The tool does not replace art judgment. Inspect the generated previews after using it, especially around hair, shoes, propellers, dash trails, and other thin effects.
+
 ## Yokoshoot Rin Notes
 
 - Rin's 4-row sheet order is forward, backward, charged dash, and neutral idle.
