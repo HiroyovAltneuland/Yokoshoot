@@ -43,8 +43,8 @@
   const ENEMY_SPRITE_ROWS = 5;
   const ENEMY_SPRITE_SOURCE_INSET = 4;
   const ENEMY_SPRITE_CONFIG = {
-    twintail: { row: 0, width: 132, height: 99, radius: 18, offsetX: 0, offsetY: 0 },
-    visorGlasses: { row: 1, width: 132, height: 99, radius: 18, offsetX: 0, offsetY: 0 },
+    twintail: { row: 0, width: 185, height: 139, radius: 25, offsetX: 0, offsetY: 0 },
+    visorGlasses: { row: 1, width: 185, height: 139, radius: 25, offsetX: 0, offsetY: 0 },
     robotB: { row: 2, width: 96, height: 72, radius: 14, offsetX: 0, offsetY: 4 },
     droneA: { row: 3, width: 96, height: 72, radius: 14, offsetX: 0, offsetY: 0 },
     droneB: { row: 4, width: 96, height: 72, radius: 14, offsetX: 0, offsetY: 0 },

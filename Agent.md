@@ -158,6 +158,8 @@ The player character is:
 - After the stage 1 mid-boss 朝比奈 つばめ takes 9 or more damage, she becomes invincible and retreats to the right side of the screen.
 - When the stage 1 mid-boss retreats, spawn exactly one pink twin-tail tennis club girl and one tall visor-and-glasses tennis club girl with a single ponytail.
 - The twin-tail and visor-and-glasses reinforcements should be about Rin's in-game size, use 3-frame forward animations, and keep their head-to-body proportions close to Rin rather than a chibi look.
+- The twin-tail and visor-and-glasses reinforcements should lean strongly forward and read as walking or running with alternating left/right foot placement across their 3 animation frames.
+- The twin-tail and visor-and-glasses reinforcements should display about 1.4 times larger than their original 132x99 prototype size.
 - Stage 1 should move from the mid-boss encounter to regular enemies 2 after both reinforcements are defeated or leave the screen.
 - Umpire drone A and B should animate their propellers rotating across 3 frames.
 - Stage 1 should move to the mid-boss or boss only after the current regular enemies are defeated or leave the screen, and their remaining tennis balls are gone.
