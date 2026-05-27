@@ -44,6 +44,7 @@
   const BOSS_SPRITE_COLUMNS = 3;
   const BOSS_SPRITE_ROWS = 2;
   const BOSS_SPRITE_DRAW_SIZE = 172;
+  const BOSS_SPRITE_FOOT_OFFSET_Y = Math.round(BOSS_SPRITE_DRAW_SIZE * 0.44);
   const ENEMY_SPRITE_COLUMNS = 3;
   const ENEMY_SPRITE_ROWS = 5;
   const ENEMY_SPRITE_SOURCE_INSET = 4;
@@ -57,6 +58,10 @@
   const HUMANOID_MIN_Y = Math.round(HEIGHT * 0.68);
   const HUMANOID_MAX_Y = Math.round(HEIGHT * 0.9);
   const HUMANOID_CENTER_Y = Math.round((HUMANOID_MIN_Y + HUMANOID_MAX_Y) / 2);
+  const BOSS_MIN_Y = HUMANOID_MIN_Y - BOSS_SPRITE_FOOT_OFFSET_Y;
+  const BOSS_MAX_Y = HUMANOID_MAX_Y - BOSS_SPRITE_FOOT_OFFSET_Y;
+  const BOSS_CENTER_Y = Math.round((BOSS_MIN_Y + BOSS_MAX_Y) / 2);
+  const BOSS_MOVE_AMPLITUDE = Math.round((BOSS_MAX_Y - BOSS_MIN_Y) / 2);
   const HUMANOID_ENEMY_TYPES = new Set(["twintail", "visorGlasses"]);
   const PLAYER_SPRITE_ROWS_BY_STATE = {
     forward: 0,
@@ -293,7 +298,7 @@
     return {
       name,
       x: WIDTH - 130,
-      y: HUMANOID_CENTER_Y,
+      y: BOSS_CENTER_Y,
       r: rank ? 46 : 38,
       hp,
       maxHp: hp,
@@ -584,6 +589,10 @@
     return clamp(y, HUMANOID_MIN_Y, HUMANOID_MAX_Y);
   }
 
+  function clampBossY(y) {
+    return clamp(y, BOSS_MIN_Y, BOSS_MAX_Y);
+  }
+
   function selectRegularEnemyType(wave, spawnIndex) {
     if (wave === "wave2") return "droneB";
     return "droneA";
@@ -660,7 +669,7 @@
     const boss = state.boss;
     boss.fireTimer -= dt;
     boss.moveTimer += dt;
-    boss.y = clampHumanoidY(HUMANOID_CENTER_Y + Math.sin(boss.moveTimer * 1.9) * 54);
+    boss.y = clampBossY(BOSS_CENTER_Y + Math.sin(boss.moveTimer * 1.9) * BOSS_MOVE_AMPLITUDE);
     if (boss.fireTimer > 0) return;
 
     if (boss.rank === 0) {
@@ -856,8 +865,8 @@
   function updateMidBossRetreat(dt) {
     if (!state.boss) return;
     state.boss.x += 230 * dt;
-    state.boss.y += (HUMANOID_CENTER_Y - state.boss.y) * Math.min(1, dt * 3);
-    state.boss.y = clampHumanoidY(state.boss.y);
+    state.boss.y += (BOSS_CENTER_Y - state.boss.y) * Math.min(1, dt * 3);
+    state.boss.y = clampBossY(state.boss.y);
   }
 
   function updateKnives(dt) {
