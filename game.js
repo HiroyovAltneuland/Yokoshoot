@@ -21,6 +21,7 @@
   const PLAYER_FIRE_INTERVAL = 1 / 3;
   const PLAYER_KNIFE_SPEED = 640;
   const PLAYER_KNIFE_UP_ANGLE = -Math.PI / 7;
+  const PLAYER_THROW_SECONDS = 0.16;
   const PLAYER_RADIUS = 15;
   const PLAYER_HURT_RADIUS = 8;
   const PLAYER_WAIST_OFFSET_Y = 8;
@@ -35,7 +36,7 @@
   const DASH_COOLDOWN_SECONDS = 4;
   const DRONE_LOOP_BASE_VOLUME = 0.026;
   const PLAYER_SPRITE_COLUMNS = 3;
-  const PLAYER_SPRITE_ROWS = 5;
+  const PLAYER_SPRITE_ROWS = 6;
   const PLAYER_SPRITE_DRAW_WIDTH = 132;
   const PLAYER_SPRITE_DRAW_HEIGHT = 99;
   const PLAYER_SPRITE_TOP_EXTENT = Math.ceil(PLAYER_SPRITE_DRAW_HEIGHT * 0.58) + 2;
@@ -63,6 +64,7 @@
     dash: 2,
     idle: 3,
     flinch: 4,
+    throw: 5,
   };
   const PLAYER_SPRITE_FRAME_OFFSETS = {
     forward: [
@@ -86,6 +88,11 @@
       { x: 0, y: 0 },
     ],
     flinch: [
+      { x: 0, y: 0 },
+      { x: 0, y: 0 },
+      { x: 0, y: 0 },
+    ],
+    throw: [
       { x: 0, y: 0 },
       { x: 0, y: 0 },
       { x: 0, y: 0 },
@@ -175,6 +182,7 @@
       lives: 3,
       invincible: 0,
       flinchTime: 0,
+      throwTime: 0,
       chargeTime: 0,
       dashCooldown: 0,
       wasCharging: false,
@@ -499,6 +507,7 @@
   function shootKnife() {
     playShotSound("knife");
     const angle = state.player.nextKnifeHigh ? PLAYER_KNIFE_UP_ANGLE : 0;
+    if (canShowThrowMotion()) state.player.throwTime = PLAYER_THROW_SECONDS;
     state.knives.push({
       x: state.player.x + 34,
       y: state.player.y - 22,
@@ -507,6 +516,14 @@
       r: 6,
     });
     state.player.nextKnifeHigh = !state.player.nextKnifeHigh;
+  }
+
+  function canShowThrowMotion() {
+    return (
+      state.player.dashState === "none" &&
+      state.player.flinchTime <= 0 &&
+      state.player.moveX >= 0
+    );
   }
 
   function spawnEnemy() {
@@ -683,6 +700,7 @@
     state.fireCooldown -= dt;
     state.player.invincible = Math.max(0, state.player.invincible - dt);
     state.player.flinchTime = Math.max(0, state.player.flinchTime - dt);
+    state.player.throwTime = Math.max(0, state.player.throwTime - dt);
     state.player.dashCooldown = Math.max(0, state.player.dashCooldown - dt);
 
     updatePlayer(dt);
@@ -1225,8 +1243,8 @@
       return;
     }
 
-    const frame = Math.floor(state.elapsed * 8) % PLAYER_SPRITE_COLUMNS;
     const spriteState = getPlayerSpriteState(dashActive);
+    const frame = getPlayerSpriteFrame(spriteState);
     const row = PLAYER_SPRITE_ROWS_BY_STATE[spriteState];
     const offset = PLAYER_SPRITE_FRAME_OFFSETS[spriteState][frame];
     const sourceWidth = playerSprite.naturalWidth / PLAYER_SPRITE_COLUMNS;
@@ -1248,11 +1266,23 @@
     if (state.player.flinchTime > 0) return "flinch";
     if (state.player.dashState === "dash") return "dash";
     if (state.player.dashState === "return") return "backward";
+    const baseState = getPlayerMovementSpriteState(dashActive);
+    if (state.player.throwTime > 0 && (baseState === "forward" || baseState === "idle")) return "throw";
+    return baseState;
+  }
+
+  function getPlayerMovementSpriteState(dashActive) {
     if (state.player.moveX > 0) return "forward";
     if (state.player.moveX < 0) return "backward";
     if (state.player.moveY !== 0) return "forward";
     if (dashActive) return "dash";
     return "idle";
+  }
+
+  function getPlayerSpriteFrame(spriteState) {
+    if (spriteState !== "throw") return Math.floor(state.elapsed * 8) % PLAYER_SPRITE_COLUMNS;
+    const elapsed = PLAYER_THROW_SECONDS - state.player.throwTime;
+    return clamp(Math.floor(elapsed / (PLAYER_THROW_SECONDS / 2)), 0, 1);
   }
 
   function drawDashCooldownGauge() {
