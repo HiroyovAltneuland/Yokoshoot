@@ -91,7 +91,7 @@ The player character is:
 
 - The normal shot is a thrown small knife.
 - The normal shot fires 3 times per second.
-- The shot should travel from the player toward the right side of the screen.
+- The shot should travel straight right by default, diagonally up-right while Up is held, and diagonally down-right while Down is held. If Up and Down are both held, fire straight.
 - Rin's normal shot should spawn near her chest-height right hand so it appears to launch from the knife-ready pose.
 - The shot visual should read as a small blade or throwing knife.
 - The player shot sound effect should feel like a small blade cutting through air.
@@ -109,7 +109,7 @@ The player character is:
 - During the charged dash cooldown, show a small cooldown gauge above the protagonist's head that shrinks as the cooldown decreases.
 - During the charged dash cooldown, holding Space should not build charge or show the charge effect, but releasing Space should still fire a normal small-knife shot if the normal shot cooldown allows it.
 - During the dash and return, the protagonist is invincible, cannot fire shots, and flickers 2 times per second.
-- During the dash, the protagonist rushes to the right edge of the screen at 3 times normal movement speed, leaving a visible trail.
+- During the dash, the protagonist rushes to the right edge of the screen at 3 times normal movement speed, leaving a visible trail. Use the same vertical aim rule as shots: straight by default, diagonal up while Up is held, and diagonal down while Down is held.
 - A charged dash can damage each target it collides with once, dealing 9 normal-shot hits of damage.
 - After reaching the right edge, the protagonist returns to the original position at normal movement speed.
 - The original position should be remembered from the point where the charged dash began.
