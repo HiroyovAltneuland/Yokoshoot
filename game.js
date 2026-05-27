@@ -19,6 +19,8 @@
   const WIDTH = canvas.width;
   const HEIGHT = canvas.height;
   const PLAYER_FIRE_INTERVAL = 1 / 3;
+  const PLAYER_KNIFE_SPEED = 640;
+  const PLAYER_KNIFE_UP_ANGLE = -Math.PI / 7;
   const PLAYER_RADIUS = 15;
   const PLAYER_HURT_RADIUS = 8;
   const PLAYER_WAIST_OFFSET_Y = 8;
@@ -182,6 +184,7 @@
       trail: [],
       moveX: 0,
       moveY: 0,
+      nextKnifeHigh: false,
     };
   }
 
@@ -494,12 +497,15 @@
 
   function shootKnife() {
     playShotSound("knife");
+    const angle = state.player.nextKnifeHigh ? PLAYER_KNIFE_UP_ANGLE : 0;
     state.knives.push({
       x: state.player.x + 34,
       y: state.player.y - 22,
-      vx: 640,
+      vx: Math.cos(angle) * PLAYER_KNIFE_SPEED,
+      vy: Math.sin(angle) * PLAYER_KNIFE_SPEED,
       r: 6,
     });
+    state.player.nextKnifeHigh = !state.player.nextKnifeHigh;
   }
 
   function spawnEnemy() {
@@ -831,8 +837,13 @@
   }
 
   function updateKnives(dt) {
-    for (const knife of state.knives) knife.x += knife.vx * dt;
-    state.knives = state.knives.filter((knife) => knife.x < WIDTH + 32);
+    for (const knife of state.knives) {
+      knife.x += knife.vx * dt;
+      knife.y += knife.vy * dt;
+    }
+    state.knives = state.knives.filter((knife) => (
+      knife.x < WIDTH + 32 && knife.y > -32 && knife.y < HEIGHT + 32
+    ));
   }
 
   function updateEnemies(dt) {
@@ -1253,12 +1264,16 @@
 
   function drawKnives() {
     for (const knife of state.knives) {
+      ctx.save();
+      ctx.translate(knife.x, knife.y);
+      ctx.rotate(Math.atan2(knife.vy, knife.vx));
       ctx.fillStyle = "#eef5ff";
-      pixelRect(knife.x - 8, knife.y - 3, 22, 6);
+      pixelRect(-8, -3, 22, 6);
       ctx.fillStyle = "#a9c5df";
-      pixelRect(knife.x + 10, knife.y - 1, 6, 2);
+      pixelRect(10, -1, 6, 2);
       ctx.fillStyle = "#343847";
-      pixelRect(knife.x - 14, knife.y - 2, 8, 4);
+      pixelRect(-14, -2, 8, 4);
+      ctx.restore();
     }
   }
 
