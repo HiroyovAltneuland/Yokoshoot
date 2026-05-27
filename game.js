@@ -53,9 +53,10 @@
     droneA: { row: 3, width: 96, height: 72, radius: 14, offsetX: 0, offsetY: 0 },
     droneB: { row: 4, width: 96, height: 72, radius: 14, offsetX: 0, offsetY: 0 },
   };
+  const HUMANOID_MIN_Y = Math.round(HEIGHT * 0.68);
+  const HUMANOID_MAX_Y = Math.round(HEIGHT * 0.9);
+  const HUMANOID_CENTER_Y = Math.round((HUMANOID_MIN_Y + HUMANOID_MAX_Y) / 2);
   const HUMANOID_ENEMY_TYPES = new Set(["twintail", "visorGlasses"]);
-  const HUMANOID_ENEMY_MIN_Y = Math.round(HEIGHT * 0.68);
-  const HUMANOID_ENEMY_MAX_Y = Math.round(HEIGHT * 0.9);
   const PLAYER_SPRITE_ROWS_BY_STATE = {
     forward: 0,
     backward: 1,
@@ -170,7 +171,7 @@
   function makePlayer() {
     return {
       x: 86,
-      y: HEIGHT / 2,
+      y: HUMANOID_CENTER_Y,
       lives: 3,
       invincible: 0,
       flinchTime: 0,
@@ -179,7 +180,7 @@
       wasCharging: false,
       chargeReadySoundPlayed: false,
       dashState: "none",
-      dashOrigin: { x: 86, y: HEIGHT / 2 },
+      dashOrigin: { x: 86, y: HUMANOID_CENTER_Y },
       dashHits: new Set(),
       trail: [],
       moveX: 0,
@@ -284,7 +285,7 @@
     return {
       name,
       x: WIDTH - 130,
-      y: HEIGHT / 2,
+      y: HUMANOID_CENTER_Y,
       r: rank ? 46 : 38,
       hp,
       maxHp: hp,
@@ -548,18 +549,22 @@
 
   function randomEnemyY(type) {
     if (isHumanoidEnemyType(type)) {
-      return HUMANOID_ENEMY_MIN_Y + Math.random() * (HUMANOID_ENEMY_MAX_Y - HUMANOID_ENEMY_MIN_Y);
+      return HUMANOID_MIN_Y + Math.random() * (HUMANOID_MAX_Y - HUMANOID_MIN_Y);
     }
     return 76 + Math.random() * (HEIGHT - 152);
   }
 
   function clampEnemyY(type, y) {
     if (!isHumanoidEnemyType(type)) return y;
-    return clamp(y, HUMANOID_ENEMY_MIN_Y, HUMANOID_ENEMY_MAX_Y);
+    return clampHumanoidY(y);
   }
 
   function isHumanoidEnemyType(type) {
     return HUMANOID_ENEMY_TYPES.has(type);
+  }
+
+  function clampHumanoidY(y) {
+    return clamp(y, HUMANOID_MIN_Y, HUMANOID_MAX_Y);
   }
 
   function selectRegularEnemyType(wave, spawnIndex) {
@@ -638,7 +643,7 @@
     const boss = state.boss;
     boss.fireTimer -= dt;
     boss.moveTimer += dt;
-    boss.y = HEIGHT / 2 + Math.sin(boss.moveTimer * 1.9) * 120;
+    boss.y = clampHumanoidY(HUMANOID_CENTER_Y + Math.sin(boss.moveTimer * 1.9) * 54);
     if (boss.fireTimer > 0) return;
 
     if (boss.rank === 0) {
@@ -709,8 +714,8 @@
     state.player.x = clamp(state.player.x + (dx / len) * speed * dt, 34, WIDTH * 0.48);
     state.player.y = clamp(
       state.player.y + (dy / len) * speed * dt,
-      PLAYER_SPRITE_TOP_EXTENT,
-      HEIGHT - PLAYER_SPRITE_BOTTOM_EXTENT
+      Math.max(HUMANOID_MIN_Y, PLAYER_SPRITE_TOP_EXTENT),
+      Math.min(HUMANOID_MAX_Y, HEIGHT - PLAYER_SPRITE_BOTTOM_EXTENT)
     );
 
     updateCharge(dt);
@@ -833,7 +838,8 @@
   function updateMidBossRetreat(dt) {
     if (!state.boss) return;
     state.boss.x += 230 * dt;
-    state.boss.y += (HEIGHT * 0.5 - state.boss.y) * Math.min(1, dt * 3);
+    state.boss.y += (HUMANOID_CENTER_Y - state.boss.y) * Math.min(1, dt * 3);
+    state.boss.y = clampHumanoidY(state.boss.y);
   }
 
   function updateKnives(dt) {
