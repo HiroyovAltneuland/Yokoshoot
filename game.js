@@ -20,7 +20,7 @@
   const HEIGHT = canvas.height;
   const PLAYER_FIRE_INTERVAL = 1 / 3;
   const PLAYER_KNIFE_SPEED = 640;
-  const PLAYER_KNIFE_UP_ANGLE = -Math.PI / 7;
+  const PLAYER_AIM_ANGLE = Math.PI / 7;
   const PLAYER_THROW_SECONDS = 0.16;
   const PLAYER_RADIUS = 15;
   const PLAYER_HURT_RADIUS = 8;
@@ -194,11 +194,11 @@
       chargeReadySoundPlayed: false,
       dashState: "none",
       dashOrigin: { x: 86, y: HUMANOID_CENTER_Y },
+      dashVector: { x: 1, y: 0 },
       dashHits: new Set(),
       trail: [],
       moveX: 0,
       moveY: 0,
-      nextKnifeHigh: false,
     };
   }
 
@@ -511,7 +511,7 @@
 
   function shootKnife() {
     playShotSound("knife");
-    const angle = state.player.nextKnifeHigh ? PLAYER_KNIFE_UP_ANGLE : 0;
+    const angle = getPlayerAimAngle();
     if (canShowThrowMotion()) state.player.throwTime = PLAYER_THROW_SECONDS;
     state.knives.push({
       x: state.player.x + 34,
@@ -520,7 +520,17 @@
       vy: Math.sin(angle) * PLAYER_KNIFE_SPEED,
       r: 6,
     });
-    state.player.nextKnifeHigh = !state.player.nextKnifeHigh;
+  }
+
+  function getPlayerAimAngle() {
+    return getVerticalAimSign() * PLAYER_AIM_ANGLE;
+  }
+
+  function getVerticalAimSign() {
+    const aimingUp = state.keys.has("ArrowUp") || state.keys.has("KeyW");
+    const aimingDown = state.keys.has("ArrowDown") || state.keys.has("KeyS");
+    if (aimingUp === aimingDown) return 0;
+    return aimingUp ? -1 : 1;
   }
 
   function canShowThrowMotion() {
@@ -790,8 +800,10 @@
 
   function startDash() {
     playDashLaunchSound();
+    const angle = getPlayerAimAngle();
     state.player.dashState = "dash";
     state.player.dashOrigin = { x: state.player.x, y: state.player.y };
+    state.player.dashVector = { x: Math.cos(angle), y: Math.sin(angle) };
     state.player.dashHits = new Set();
     state.player.trail = [];
     state.player.invincible = 999;
@@ -806,7 +818,8 @@
     if (player.trail.length > 20) player.trail.shift();
 
     if (player.dashState === "dash") {
-      player.x += DASH_SPEED * dt;
+      player.x += player.dashVector.x * DASH_SPEED * dt;
+      player.y = clampHumanoidY(player.y + player.dashVector.y * DASH_SPEED * dt);
       if (player.x >= WIDTH - PLAYER_RADIUS) {
         player.x = WIDTH - PLAYER_RADIUS;
         player.dashState = "return";
