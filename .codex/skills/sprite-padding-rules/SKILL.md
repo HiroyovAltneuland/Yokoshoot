@@ -55,10 +55,11 @@ The tool does not replace art judgment. Inspect the generated previews after usi
 
 ## Yokoshoot Rin Notes
 
-- Rin's 5-row sheet order is forward, backward, charged dash, neutral idle, and damage flinch.
+- Rin's 6-row sheet order is forward, backward, charged dash, neutral idle, damage flinch, and knife throw.
 - Rin's forward row should read as walking forward, with left and right feet alternating across the 3 frames.
 - Rin's neutral idle should keep feet closed and the head horizontally stable while hair, scarf, and skirt move enough to read as a quiet inhale.
 - Rin's damage flinch row should read as a distinct recoil pose and is shown for about 0.5 seconds after damage.
+- Rin's knife throw row should read as a quick 2-frame throw based on the forward/neutral stance; use the third frame as a safe follow-through or duplicate-style hold when the sheet needs 3 columns.
 - Rin's charged dash row should preserve a visible body-behind afterimage or speed trail. The trail may extend wider than other states, but it still needs safe padding inside each cell.
 - For Rin, connected-component repacking with roughly 24px target padding has produced safer results than relying on the raw generated grid.
 
