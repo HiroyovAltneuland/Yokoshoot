@@ -51,6 +51,9 @@
     droneA: { row: 3, width: 96, height: 72, radius: 14, offsetX: 0, offsetY: 0 },
     droneB: { row: 4, width: 96, height: 72, radius: 14, offsetX: 0, offsetY: 0 },
   };
+  const HUMANOID_ENEMY_TYPES = new Set(["twintail", "visorGlasses"]);
+  const HUMANOID_ENEMY_MIN_Y = Math.round(HEIGHT * 0.68);
+  const HUMANOID_ENEMY_MAX_Y = Math.round(HEIGHT * 0.9);
   const PLAYER_SPRITE_ROWS_BY_STATE = {
     forward: 0,
     backward: 1,
@@ -500,10 +503,10 @@
   }
 
   function spawnEnemy() {
-    const y = 76 + Math.random() * (HEIGHT - 152);
     state.waveSpawnCounts[state.phase] += 1;
     const spawnIndex = state.waveSpawnCounts[state.phase];
     const enemyType = selectRegularEnemyType(state.phase, spawnIndex);
+    const y = randomEnemyY(enemyType);
     const enemyConfig = ENEMY_SPRITE_CONFIG[enemyType];
     state.enemies.push({
       id: state.nextEnemyId,
@@ -525,7 +528,7 @@
     state.enemies.push({
       id: state.nextEnemyId,
       x: WIDTH + 28,
-      y,
+      y: clampEnemyY(type, y),
       vx: -125,
       r: enemyConfig.radius,
       fireTimer: 0.75,
@@ -535,6 +538,22 @@
       usedSpecial: false,
     });
     state.nextEnemyId += 1;
+  }
+
+  function randomEnemyY(type) {
+    if (isHumanoidEnemyType(type)) {
+      return HUMANOID_ENEMY_MIN_Y + Math.random() * (HUMANOID_ENEMY_MAX_Y - HUMANOID_ENEMY_MIN_Y);
+    }
+    return 76 + Math.random() * (HEIGHT - 152);
+  }
+
+  function clampEnemyY(type, y) {
+    if (!isHumanoidEnemyType(type)) return y;
+    return clamp(y, HUMANOID_ENEMY_MIN_Y, HUMANOID_ENEMY_MAX_Y);
+  }
+
+  function isHumanoidEnemyType(type) {
+    return HUMANOID_ENEMY_TYPES.has(type);
   }
 
   function selectRegularEnemyType(wave, spawnIndex) {
@@ -819,6 +838,7 @@
   function updateEnemies(dt) {
     for (const enemy of state.enemies) {
       enemy.x += enemy.vx * dt;
+      enemy.y = clampEnemyY(enemy.type, enemy.y);
       enemy.fireTimer -= dt;
       if (enemy.fireTimer <= 0) {
         enemy.fireTimer = 1.55 + Math.random() * 0.9;
@@ -933,8 +953,8 @@
     state.boss.fireTimer = 999;
     state.enemyBullets = [];
     state.message = "朝比奈 撤退";
-    spawnReinforcementEnemy("twintail", HEIGHT * 0.34);
-    spawnReinforcementEnemy("visorGlasses", HEIGHT * 0.66);
+    spawnReinforcementEnemy("twintail", HEIGHT * 0.72);
+    spawnReinforcementEnemy("visorGlasses", HEIGHT * 0.84);
   }
 
   function triggerBossAttackChange() {
