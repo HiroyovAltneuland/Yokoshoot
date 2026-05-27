@@ -104,6 +104,14 @@
   tsubameBossSprite.src = "assets/tsubame-boss-sprite-sheet.png";
   const stageOneEnemySprite = new Image();
   stageOneEnemySprite.src = "assets/stage1-enemy-sprite-sheet.png";
+  const stageOneBackground = new Image();
+  stageOneBackground.src = "assets/stage1-background-concept.png";
+  const BACKGROUND_STOPS = {
+    wave1Start: 0,
+    midBoss: 0.34,
+    wave2Start: 0.48,
+    boss: 1,
+  };
 
   const phasePlan = {
     wave1: 15,
@@ -1002,6 +1010,55 @@
   }
 
   function drawBackground() {
+    if (drawStageOneBackground()) return;
+    drawFallbackBackground();
+  }
+
+  function drawStageOneBackground() {
+    if (!stageOneBackground.complete || stageOneBackground.naturalWidth === 0) return false;
+    const sourceHeight = stageOneBackground.naturalHeight;
+    const sourceWidth = Math.min(stageOneBackground.naturalWidth, sourceHeight * (WIDTH / HEIGHT));
+    const sourceX = getStageOneBackgroundSourceX(sourceWidth);
+    ctx.drawImage(
+      stageOneBackground,
+      sourceX,
+      0,
+      sourceWidth,
+      sourceHeight,
+      0,
+      0,
+      WIDTH,
+      HEIGHT
+    );
+    return true;
+  }
+
+  function getStageOneBackgroundSourceX(sourceWidth) {
+    const maxSourceX = Math.max(0, stageOneBackground.naturalWidth - sourceWidth);
+    let stop = BACKGROUND_STOPS.wave1Start;
+    if (state.phase === "wave1") {
+      const progress = clamp(state.phaseTime / phasePlan.wave1, 0, 1);
+      stop = lerp(BACKGROUND_STOPS.wave1Start, BACKGROUND_STOPS.midBoss, easeInOut(progress));
+    } else if (state.phase === "midBoss") {
+      stop = BACKGROUND_STOPS.midBoss;
+    } else if (state.phase === "wave2") {
+      const progress = clamp(state.phaseTime / phasePlan.wave2, 0, 1);
+      stop = lerp(BACKGROUND_STOPS.wave2Start, BACKGROUND_STOPS.boss, easeInOut(progress));
+    } else if (state.phase === "boss") {
+      stop = BACKGROUND_STOPS.boss;
+    }
+    return Math.round(maxSourceX * stop);
+  }
+
+  function lerp(a, b, t) {
+    return a + (b - a) * t;
+  }
+
+  function easeInOut(t) {
+    return t * t * (3 - 2 * t);
+  }
+
+  function drawFallbackBackground() {
     ctx.fillStyle = "#f09952";
     pixelRect(0, 0, WIDTH, 86);
     ctx.fillStyle = "#a75d52";
