@@ -97,6 +97,7 @@ The player character is:
 - The player shot sound effect should feel like a small blade cutting through air.
 - Rin's damage hitbox should be a small waist-centered area only; visual body overlap outside the waist should not count as damage.
 - Immediately after taking damage, Rin should show a dedicated flinch sprite for about 0.5 seconds and be knocked back about one character width to the left.
+- Humanoid in-game characters, including Rin, humanoid regular enemies, and bosses, should appear and move within roughly the lower third of the screen so walking poses read as grounded.
 
 ### Charged Dash Attack
 
