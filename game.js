@@ -112,6 +112,11 @@
     wave2Start: 0.48,
     boss: 1,
   };
+  const BACKGROUND_PARALLAX_LAYERS = [
+    { top: 0, bottom: 0.58, strength: 0 },
+    { top: 0.34, bottom: 0.82, strength: 0.08 },
+    { top: 0.72, bottom: 1, strength: 0.16 },
+  ];
 
   const phasePlan = {
     wave1: 15,
@@ -1018,23 +1023,36 @@
     if (!stageOneBackground.complete || stageOneBackground.naturalWidth === 0) return false;
     const sourceHeight = stageOneBackground.naturalHeight;
     const sourceWidth = Math.min(stageOneBackground.naturalWidth, sourceHeight * (WIDTH / HEIGHT));
-    const sourceX = getStageOneBackgroundSourceX(sourceWidth);
-    ctx.drawImage(
-      stageOneBackground,
-      sourceX,
-      0,
-      sourceWidth,
-      sourceHeight,
-      0,
-      0,
-      WIDTH,
-      HEIGHT
-    );
+    const stop = getStageOneBackgroundStop();
+    for (const layer of BACKGROUND_PARALLAX_LAYERS) {
+      drawStageOneBackgroundLayer(sourceWidth, stop, layer);
+    }
     return true;
   }
 
-  function getStageOneBackgroundSourceX(sourceWidth) {
-    const maxSourceX = Math.max(0, stageOneBackground.naturalWidth - sourceWidth);
+  function drawStageOneBackgroundLayer(sourceWidth, stop, layer) {
+    const sourceHeight = stageOneBackground.naturalHeight;
+    const sourceTop = Math.round(sourceHeight * layer.top);
+    const sourceBottom = Math.round(sourceHeight * layer.bottom);
+    const sourceLayerHeight = Math.max(1, sourceBottom - sourceTop);
+    const destTop = Math.round(HEIGHT * layer.top);
+    const destBottom = Math.round(HEIGHT * layer.bottom);
+    const destLayerHeight = Math.max(1, destBottom - destTop);
+    const sourceX = getStageOneBackgroundSourceX(sourceWidth, stop, layer.strength);
+    ctx.drawImage(
+      stageOneBackground,
+      sourceX,
+      sourceTop,
+      sourceWidth,
+      sourceLayerHeight,
+      0,
+      destTop,
+      WIDTH,
+      destLayerHeight
+    );
+  }
+
+  function getStageOneBackgroundStop() {
     let stop = BACKGROUND_STOPS.wave1Start;
     if (state.phase === "wave1") {
       const progress = clamp(state.phaseTime / phasePlan.wave1, 0, 1);
@@ -1047,7 +1065,13 @@
     } else if (state.phase === "boss") {
       stop = BACKGROUND_STOPS.boss;
     }
-    return Math.round(maxSourceX * stop);
+    return stop;
+  }
+
+  function getStageOneBackgroundSourceX(sourceWidth, stop, parallaxStrength) {
+    const maxSourceX = Math.max(0, stageOneBackground.naturalWidth - sourceWidth);
+    const parallaxStop = clamp(stop + (stop - 0.5) * parallaxStrength, 0, 1);
+    return Math.round(maxSourceX * parallaxStop);
   }
 
   function lerp(a, b, t) {
