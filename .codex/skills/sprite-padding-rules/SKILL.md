@@ -18,6 +18,7 @@ Use this skill when creating or reviewing raster sprite sheets for game characte
 - Use the largest silhouette in the animation as the padding baseline so no frame clips when rendered in-game.
 - Do not trust an AI-generated sprite grid by eye alone. Generated rows and columns often drift, overlap, or contain fragments from neighboring frames.
 - When generated frames cross nominal cell boundaries, remove the chroma key first, then extract visible connected components and repack each frame into a clean equal-size output grid.
+- Do not discard isolated components until their ownership has been checked against neighboring cells. Shoes, soles, hair tips, cloth, and effects may be clipped pieces that need to be reattached to their source frame before repacking.
 - Keep intentional secondary effects with the sprite. For dash frames, include afterimages, trails, hair streaks, and cloth motion by grouping nearby or connected components with the body instead of cropping to the body silhouette only.
 - Do not erase fixed edge margins blindly after packing; it can cut off hair, shoes, trails, and breathing animation. Prefer measured packing with a target margin, then validate the result.
 - After chroma-key removal, clear a small transparent safety margin around every cell edge to remove stray pixels.
