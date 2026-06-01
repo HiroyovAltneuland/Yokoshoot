@@ -247,8 +247,9 @@ The player character is:
 - The in-game canvas should always preserve its 16:9 aspect ratio across resolutions; unused viewport space should be black letterbox/pillarbox bars.
 - Prefer blocky silhouettes, hard edges, and stepped shapes in canvas gameplay rendering.
 - Avoid smooth gradients or round vector-like character shapes in in-game rendering unless there is a strong reason.
-- Rin's in-game sprite uses a late-1990s Japanese horror adventure mood: subdued, semi-realistic pixel art with six 3-frame rows for forward movement, backward movement, charged dash, neutral idle, damage flinch, and knife throw.
+- Rin's in-game sprite uses a late-1990s Japanese horror adventure mood: subdued, semi-realistic pixel art with seven 3-frame rows for forward movement, backward movement, charged dash, neutral idle, damage flinch, knife throw, and gentle in-place walking while the background scrolls.
 - Rin's forward movement row should read as walking forward, with left and right feet alternating across the 3 animation frames.
+- Rin's scrolling in-place walking row should use a visibly smaller stride than the forward row, with stable head and torso anchors and left/right feet alternating gently from a near-idle stance.
 - Rin's neutral 3-frame animation should keep her head horizontally stable while her hair, scarf, and skirt flutter like she is taking a large quiet breath.
 - Rin's neutral stance should keep her feet closed.
 - Rin's knife throw row should read as a quick 2-frame throw based on the forward/neutral stance; apply it only while moving forward, moving vertically, or standing idle, not while moving backward.

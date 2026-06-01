@@ -54,7 +54,7 @@
   const DRONE_LOOP_BASE_VOLUME = 0.026;
   const FINAL_STAGE = 3;
   const PLAYER_SPRITE_COLUMNS = 3;
-  const PLAYER_SPRITE_ROWS = 6;
+  const PLAYER_SPRITE_ROWS = 7;
   const PLAYER_SPRITE_DRAW_WIDTH = 132;
   const PLAYER_SPRITE_DRAW_HEIGHT = 99;
   const PLAYER_SPRITE_TOP_EXTENT = Math.ceil(PLAYER_SPRITE_DRAW_HEIGHT * 0.58) + 2;
@@ -95,6 +95,7 @@
     idle: 3,
     flinch: 4,
     throw: 5,
+    scrollWalk: 6,
   };
   const PLAYER_SPRITE_FRAME_OFFSETS = {
     forward: [
@@ -127,6 +128,11 @@
       { x: 0, y: 0 },
       { x: 0, y: 0 },
     ],
+    scrollWalk: [
+      { x: 0, y: 0 },
+      { x: 0, y: 0 },
+      { x: 0, y: 0 },
+    ],
   };
   const BOSS_SPRITE_FRAME_OFFSETS = {
     normal: [
@@ -149,6 +155,8 @@
   stageOneEnemySprite.src = "assets/stage1-enemy-sprite-sheet.png";
   const stageOneBackground = new Image();
   stageOneBackground.src = "assets/stage1-background-concept.png";
+  const lifeScarfIcon = new Image();
+  lifeScarfIcon.src = "assets/hud-life-scarf.png";
   const BACKGROUND_STOPS = {
     wave1Start: 0,
     midBoss: 0.34,
@@ -1786,6 +1794,13 @@
   }
 
   function drawScarfLifeIcon(x, y, style) {
+    if (lifeScarfIcon.complete && lifeScarfIcon.naturalWidth > 0) {
+      ctx.save();
+      ctx.globalAlpha = style === "active" ? 1 : 0.16;
+      ctx.drawImage(lifeScarfIcon, x + 5, y, 20, 30);
+      ctx.restore();
+      return;
+    }
     ctx.save();
     ctx.translate(x, y);
     ctx.fillStyle = style === "active" ? "#ff5278" : "rgba(255,255,255,0.14)";
@@ -1873,7 +1888,12 @@
     if (state.player.moveX < 0) return "backward";
     if (state.player.moveY !== 0) return "forward";
     if (dashActive) return "dash";
+    if (isBackgroundScrolling()) return "scrollWalk";
     return "idle";
+  }
+
+  function isBackgroundScrolling() {
+    return state.mode === "playing" && (state.phase === "wave1" || state.phase === "wave2");
   }
 
   function getPlayerSpriteFrame(spriteState) {
