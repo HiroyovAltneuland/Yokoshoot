@@ -14,8 +14,34 @@
         <h1 id="game-title">
           <img src="assets/title-logo-transparent.png" alt="学園ブレード">
         </h1>
-        <p class="lead">御門院家が支配する学園で、黒羽 凛は六つの勢力に小刀を向ける。</p>
+        <p class="lead">御門院家が支配する学園で、黒羽 凛は立ちはだかる勢力に小刀を向ける。</p>
         <button id="start-button" type="button" class="start-button">ゲーム開始</button>
+        <!-- DEV_DEBUG_ONLY_START -->
+        <div id="debug-start-panel" class="debug-start-panel" hidden>
+          <p class="debug-title">LOCAL DEBUG START</p>
+          <label>
+            Stage
+            <select id="debug-stage-select">
+              <option value="1">1</option>
+              <option value="2">2</option>
+              <option value="3">3</option>
+            </select>
+          </label>
+          <label>
+            Start
+            <select id="debug-phase-select">
+              <option value="wave1">Wave 1</option>
+              <option value="midBossDialogue">Mid-boss dialogue</option>
+              <option value="midBoss">Mid-boss</option>
+              <option value="wave2">Wave 2</option>
+              <option value="bossDialogue">Boss dialogue</option>
+              <option value="boss">Boss</option>
+              <option value="bossDefeatedDialogue">Post-boss dialogue</option>
+            </select>
+          </label>
+          <button id="debug-start-button" type="button">Start</button>
+        </div>
+        <!-- DEV_DEBUG_ONLY_END -->
       </section>
     </main>
     <main id="game-screen" class="game-screen" hidden>
@@ -36,6 +62,7 @@
         </div>
       </div>
     </main>
+    <script src="game-config.js"></script>
     <script src="game.js"></script>
   </body>
 </html>

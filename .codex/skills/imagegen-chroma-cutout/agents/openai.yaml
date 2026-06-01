@@ -1,0 +1,4 @@
+interface:
+  display_name: "Imagegen Chroma Cutout"
+  short_description: "Create transparent raster cutouts via flat chroma-key removal."
+  default_prompt: "Use this skill when generating or editing a transparent raster cutout. Generate on a flat removable chroma-key background, remove it locally, validate alpha, and only then add the final asset to the project."

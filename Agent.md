@@ -16,7 +16,7 @@ The game flow is:
 2. In-game
 3. Game over or game clear
 
-The in-game section has 6 stages. Each stage follows the same structure:
+The in-game section has 3 stages. Each stage follows the same structure:
 
 1. Defeat regular enemies
 2. Conversation before the mid-boss
@@ -24,6 +24,7 @@ The in-game section has 6 stages. Each stage follows the same structure:
 4. Defeat regular enemies
 5. Conversation before the stage boss
 6. Defeat the stage boss
+7. Conversation after defeating the stage boss
 
 ## Screen Flow
 
@@ -37,8 +38,10 @@ The in-game section has 6 stages. Each stage follows the same structure:
 
 - The player controls the protagonist in a horizontal-scrolling shooting stage.
 - The stage progresses through enemy waves, mid-boss battle, more enemy waves, and boss battle.
-- Clearing the boss of stage 6 moves to the game clear screen.
-- Losing all lives moves to the game over screen.
+- Clearing the boss of stage 3 moves to the game clear screen.
+- The protagonist has a maximum of 5 life points. Losing all life points moves to the game over screen.
+- Display life as five scarf-motif icons instead of a numeric remaining-lives counter. On damage, wipe away the rightmost active icon.
+- After a post-boss dialogue ends, recover up to 2 life points one at a time with a drink-like sound effect before continuing.
 
 ### Game Over
 
@@ -47,19 +50,16 @@ The in-game section has 6 stages. Each stage follows the same structure:
 
 ### Game Clear
 
-- Show that all 6 stages have been cleared.
+- Show that all 3 stages have been cleared.
 - Provide a return-to-title action.
 
 ## Stage Structure
 
-There are 6 stages:
+There are 3 stages:
 
 - Stage 1: Tennis club, set on the tennis courts at sunset. Boss: `朝比奈 つばめ`.
-- Stage 2: Public morals committee, set in the school corridor near the student guidance room. Boss: `鬼塚 律子`.
-- Stage 3: Rival bob-cut kendo girl, set in the kendo hall. Boss: `一文字 小夜`.
-- Stage 4: Yakuza underlings serving the boss, set behind the school gate around the bicycle parking area and old gym storage. Boss: `黒須 仁美`.
-- Stage 5: Student council president in a white sailor uniform, set in the student council room and stairway toward the clock tower. Boss: `御門院 真琴`.
-- Stage 6: School chairperson, set in the chairperson's office and rooftop garden at night. Boss: `御門院 朔夜`.
+- Stage 2: A combined public-morals, rival-swordswoman, and outside-enforcer chapter, set in a very long school corridor from evening into night. Mid-boss: `鬼塚 律子`. Boss: `一文字 小夜`.
+- Stage 3: The御門院 confrontation. Mid-boss: `御門院 真澄`. Boss: `御門院 朔夜`.
 
 Each stage should contain:
 
@@ -90,8 +90,12 @@ The player character is:
 ### Player Shot
 
 - The normal shot is a thrown small knife.
-- The normal shot fires 3 times per second.
-- The shot should travel straight right by default, diagonally up-right while Up is held, and diagonally down-right while Down is held. If Up and Down are both held, fire straight.
+- The normal shot fires 6 times per second.
+- The shot should travel straight right by default and diagonally up-right while Up is held.
+- After firing an upward shot, automatically preserve upward shots for the next 0.3 seconds.
+- Right input overrides the upward-shot chain and fires straight right. Left input preserves the chain.
+- Down input should not produce a downward shot. Fire straight right while Down is held unless the upward-shot chain is active.
+- If an enemy is above Rin and inside the default upward-shot angle, adjust the upward shot to the angle between Rin and the nearest eligible enemy.
 - Rin's normal shot should spawn near her chest-height right hand so it appears to launch from the knife-ready pose.
 - The shot visual should read as a small blade or throwing knife.
 - The player shot sound effect should feel like a small blade cutting through air.
@@ -109,7 +113,7 @@ The player character is:
 - During the charged dash cooldown, show a small cooldown gauge above the protagonist's head that shrinks as the cooldown decreases.
 - During the charged dash cooldown, holding Space should not build charge or show the charge effect, but releasing Space should still fire a normal small-knife shot if the normal shot cooldown allows it.
 - During the dash and return, the protagonist is invincible, cannot fire shots, and flickers 2 times per second.
-- During the dash, the protagonist rushes to the right edge of the screen at 3 times normal movement speed, leaving a visible trail. Use the same vertical aim rule as shots: straight by default, diagonal up while Up is held, and diagonal down while Down is held.
+- During the dash, the protagonist rushes to the right edge of the screen at 3 times normal movement speed, leaving a visible trail. Dash direction uses the same straight-or-up input rule but does not auto-adjust toward enemies. Down input should produce a straight dash.
 - A charged dash can damage each target it collides with once, dealing 9 normal-shot hits of damage.
 - After reaching the right edge, the protagonist returns to the original position at normal movement speed.
 - The original position should be remembered from the point where the charged dash began.
@@ -120,17 +124,16 @@ The player character is:
 - Stage 1 boss uses a two-state 3-frame sprite: normal state with an upright chest-height racket guard, and powered state with a lowered return-ace stance.
 
 - Stage 1 boss `朝比奈 つばめ`: Tennis club ace. Use tennis rackets, tennis balls, court lines, and club uniforms as visual motifs.
-- Stage 2 boss `鬼塚 律子`: Public morals committee leader. Use armbands, inspection notebooks, discipline signs, and strict school-rule imagery.
-- Stage 3 boss `一文字 小夜`: A rival girl swordswoman with a bob haircut and kendo uniform. She should feel like the protagonist's personal mirror and technical equal.
-- Stage 4 boss `黒須 仁美`: A woman who commands yakuza underlings serving the boss. Keep the school setting by framing them as intruders or outside enforcers around the school grounds.
-- Stage 5 boss `御門院 真琴`: The student council president, a girl in a white sailor uniform. She should feel elegant, commanding, and ideologically opposed to the protagonist.
-- Stage 6 boss `御門院 朔夜`: The school chairperson. The final enemy should feel like the hidden authority behind the school conflict.
-- `御門院 真琴` and `御門院 朔夜` share the same family name to connect the stage 5 and stage 6 conflicts.
+- Stage 2 mid-boss `鬼塚 律子`: Public morals committee leader and the twin-braid girl from the title art. Use armbands, school supplies, discipline signs, and strict school-rule imagery.
+- Stage 2 boss `一文字 小夜`: The bob-cut rival swordswoman from the title art. She should feel like the protagonist's personal mirror and technical equal.
+- Stage 3 mid-boss `御門院 真澄`: A member of the御門院 family who stands immediately before the final authority.
+- Stage 3 boss `御門院 朔夜`: The final enemy and hidden authority behind the school conflict.
+- `御門院 真澄` and `御門院 朔夜` share the same family name to connect the stage 3 encounters.
 
 ## Stage 1 Gameplay Direction
 
 - Stage 1 is playable first and should establish the core shooting feel.
-- The protagonist's normal attack fires 3 times per second.
+- The protagonist's normal attack fires 6 times per second.
 - Stage 1 enemies mainly attack with tennis balls.
 - Rin's normal shot sound should feel like a sword practice swing.
 - Rin's charge start should not play a sound.
@@ -170,11 +173,71 @@ The player character is:
 - The boss is defeated after taking 25 total hits.
 - Target play-time feel: regular enemies 1 for about 15 seconds, mid-boss for about 15 seconds, regular enemies 2 for about 7 seconds, boss for about 30 seconds.
 
+## Stage 2 Gameplay Direction
+
+- Stage 2 combines the earlier public-morals, rival-swordswoman, and outside-enforcer concepts into one chapter.
+- The stage background is a very long school corridor between evening and night.
+- Build the corridor background with parallax layers:
+  - Far layer: the scenery outside the windows.
+  - Middle layer: classrooms.
+  - Near layer: the hallway.
+- The classrooms should gradually change from extremely messy to orderly as the stage progresses.
+- The stage endpoint should be a staircase with a luxurious red carpet.
+
+### Stage 2 Regular Enemies 1
+
+- Regular enemy wave 1 uses cleaning robots.
+- A cleaning robot has a mop mounted in front of its body.
+- Before charging straight ahead, its wheels should spin in place.
+- Play a wheel-spin sound effect during the wind-up.
+- After the wind-up, it should run in a zigzag path along the hallway floor.
+- Extend the first regular-enemy section to about 23 seconds.
+- During the latter half of the section, add exactly two barrage robots.
+- Each barrage robot should fire one player-aimed bullet plus a 16-way radial burst, then retreat immediately.
+- Keep reusable barrage definitions in `bullet-patterns.json`. The runtime currently supports `aimed`, `aimedSpread`, and `radial` fire actions plus `retreat` and `finish` actions.
+
+### Stage 2 Mid-boss
+
+- The stage 2 mid-boss is `鬼塚 律子`, the twin-braid girl from the title art.
+- Pre-mid-boss dialogue: `刃物は校則違反！真琴様のところへは行かせない`.
+- Ritsuko throws pencils, compasses, and triangular rulers.
+- Play a shot sound effect when she throws school supplies.
+- When her HP falls below half, she should briefly stop attacking and call reinforcements.
+- When her HP reaches 9, she should enter her powered mode and throw school supplies more rapidly.
+- Spawn exactly one glasses-wearing girl from the title art and one delinquent-looking character from the title art.
+- Each reinforcement has 3 HP and rushes toward the player.
+- After summoning the reinforcements, Ritsuko should resume and layer her shooting attacks over their rushes.
+
+### Stage 2 Regular Enemies 2
+
+- Regular enemy wave 2 uses public-morals robots.
+- Public-morals robots should move forward by repeatedly hopping along the hallway floor.
+- Public-morals robots throw shinai that travel in an arc.
+- Play a shot sound effect when a shinai is thrown.
+
+### Stage 2 Boss
+
+- The stage 2 boss is `一文字 小夜`, the bob-cut girl from the title art.
+- Pre-boss dialogue:
+  - 小夜: `あの女のところは、私との決着つけてから行け！`
+  - 凛: `5回は着いてるとおもうけど、決着`
+  - 小夜: `もう1回くらい着けてけ！`
+- During the first half of the boss battle, Sayo attacks with shock waves produced by sword swings.
+- During the second half, Sayo changes into a thrusting stance and charges forward once every 4 seconds.
+- Sayo is invincible while moving forward during her thrust charge.
+
+## Stage 3 Direction
+
+- Stage 3 is the御門院 confrontation.
+- The stage 3 mid-boss is `御門院 真澄`.
+- The stage 3 boss is `御門院 朔夜`.
+- Background, regular enemies, dialogue, and attack patterns remain to be designed.
+
 ## Title Art Direction
 
 - Title logo text: `学園ブレード`.
 - Title art should center on 黒羽 凛, the black sailor-uniform protagonist with long hair and small knives.
-- The image should suggest the stage hierarchy: tennis club, public morals committee, rival kendo girl, yakuza underlings, white-sailor student council president, and the school chairperson.
+- The image should suggest the stage hierarchy: tennis club, public-morals committee, outside enforcers, rival swordswoman, and the 御門院 family.
 - The background should clearly read as a Japanese high school after dark or at dramatic sunset.
 - The tone should be stylish school action, not military sci-fi.
 
@@ -247,7 +310,7 @@ Dialogue should make it clear whether the upcoming fight is a mid-boss or boss e
 When building or modifying the game, prioritize:
 
 1. A playable full game loop from title to clear/game over
-2. All 6 stages with the required encounter structure
+2. All 3 stages with the required encounter structure
 3. Dialogue scenes before every mid-boss and boss
 4. Clear, responsive browser controls
 5. Readable code organized around game state, stage state, enemies, bosses, bullets, and dialogue
@@ -276,14 +339,16 @@ Use stage phase values for in-game progression:
 - `wave2`
 - `bossDialogue`
 - `boss`
+- `bossDefeatedDialogue`
 - `stageClear`
 
 ## Notes For Future Agents
 
 - Keep the game runnable in a browser.
+- Keep frequently tuned gameplay values and dialogue text in `game-config.js`.
 - Avoid adding server-only requirements unless the project later adopts a framework that needs one.
 - Preserve the core flow described in this file.
-- If expanding story, art, or mechanics, keep the 6-stage structure and dialogue-before-boss requirement intact.
+- If expanding story, art, or mechanics, keep the 3-stage structure and the dialogue beats before and after each stage boss intact.
 
 ## Repository And Release Workflow
 

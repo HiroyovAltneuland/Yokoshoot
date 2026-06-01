@@ -1,0 +1,46 @@
+{
+  "barrageRobotExit": {
+    "sound": "enemyReturn",
+    "actions": [
+      {
+        "fire": "aimed",
+        "speed": 245,
+        "kind": "robotBullet",
+        "radius": 8,
+        "originX": -16
+      },
+      {
+        "fire": "radial",
+        "count": 16,
+        "speed": 175,
+        "kind": "robotBullet",
+        "radius": 7,
+        "originX": -16
+      },
+      {
+        "retreat": {
+          "speed": 270
+        }
+      },
+      {
+        "finish": {
+          "usedSpecial": true,
+          "fireTimer": 999
+        }
+      }
+    ]
+  },
+  "sayoShockwave": {
+    "sound": "swordWave",
+    "actions": [
+      {
+        "fire": "aimedSpread",
+        "angleOffsets": [-0.17, 0, 0.17],
+        "speed": 265,
+        "kind": "shockwave",
+        "radius": 14,
+        "originX": -22
+      }
+    ]
+  }
+}

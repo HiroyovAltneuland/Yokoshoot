@@ -4,6 +4,12 @@
   const titleScreen = document.getElementById("title-screen");
   const gameScreen = document.getElementById("game-screen");
   const startButton = document.getElementById("start-button");
+  /* DEV_DEBUG_ONLY_START */
+  const debugStartPanel = document.getElementById("debug-start-panel");
+  const debugStageSelect = document.getElementById("debug-stage-select");
+  const debugPhaseSelect = document.getElementById("debug-phase-select");
+  const debugStartButton = document.getElementById("debug-start-button");
+  /* DEV_DEBUG_ONLY_END */
   const canvas = document.getElementById("game-canvas");
   const ctx = canvas.getContext("2d");
   ctx.imageSmoothingEnabled = false;
@@ -18,23 +24,35 @@
 
   const WIDTH = canvas.width;
   const HEIGHT = canvas.height;
-  const PLAYER_FIRE_INTERVAL = 1 / 3;
-  const PLAYER_KNIFE_SPEED = 640;
-  const PLAYER_AIM_ANGLE = Math.PI / 7;
+  const CONFIG = window.YOKOSHOOT_CONFIG;
+  const bulletPatternsPromise = fetch("bullet-patterns.json")
+    .then((response) => {
+      if (!response.ok) throw new Error(`Failed to load bullet-patterns.json: ${response.status}`);
+      return response.json();
+    });
+  let bulletPatterns = null;
+  const PLAYER_FIRE_INTERVAL = 1 / CONFIG.player.fireRatePerSecond;
+  const PLAYER_KNIFE_SPEED = CONFIG.player.knifeSpeed;
+  const PLAYER_AIM_ANGLE = (CONFIG.player.aimAngleDegrees * Math.PI) / 180;
+  const PLAYER_UP_AIM_CHAIN_SECONDS = CONFIG.player.upAimChainSeconds;
   const PLAYER_THROW_SECONDS = 0.16;
   const PLAYER_RADIUS = 15;
   const PLAYER_HURT_RADIUS = 8;
   const PLAYER_WAIST_OFFSET_Y = 8;
-  const PLAYER_FLINCH_SECONDS = 0.5;
-  const PLAYER_KNOCKBACK_DISTANCE = 44;
-  const DIALOGUE_AUTO_SECONDS = 2.4;
-  const MID_BOSS_DIALOGUE_AUTO_SECONDS = DIALOGUE_AUTO_SECONDS + 1;
-  const CHARGE_SECONDS = 1;
-  const PLAYER_SPEED = 285;
-  const DASH_SPEED = PLAYER_SPEED * 3;
-  const DASH_DAMAGE = 9;
-  const DASH_COOLDOWN_SECONDS = 4;
+  const PLAYER_FLINCH_SECONDS = CONFIG.player.flinchSeconds;
+  const PLAYER_KNOCKBACK_DISTANCE = CONFIG.player.knockbackDistance;
+  const PLAYER_MAX_LIFE = CONFIG.player.maxLife;
+  const LIFE_WIPE_SECONDS = CONFIG.player.lifeWipeSeconds;
+  const LIFE_RECOVERY_STEP_SECONDS = CONFIG.player.lifeRecoveryStepSeconds;
+  const DIALOGUE_AUTO_SECONDS = CONFIG.dialogue.autoSeconds;
+  const MID_BOSS_DIALOGUE_AUTO_SECONDS = DIALOGUE_AUTO_SECONDS + CONFIG.dialogue.midBossExtraSeconds;
+  const CHARGE_SECONDS = CONFIG.player.dash.chargeSeconds;
+  const PLAYER_SPEED = CONFIG.player.moveSpeed;
+  const DASH_SPEED = PLAYER_SPEED * CONFIG.player.dash.speedMultiplier;
+  const DASH_DAMAGE = CONFIG.player.dash.damage;
+  const DASH_COOLDOWN_SECONDS = CONFIG.player.dash.cooldownSeconds;
   const DRONE_LOOP_BASE_VOLUME = 0.026;
+  const FINAL_STAGE = 3;
   const PLAYER_SPRITE_COLUMNS = 3;
   const PLAYER_SPRITE_ROWS = 6;
   const PLAYER_SPRITE_DRAW_WIDTH = 132;
@@ -54,15 +72,22 @@
     robotB: { row: 2, width: 96, height: 72, radius: 14, offsetX: 0, offsetY: 4 },
     droneA: { row: 3, width: 96, height: 72, radius: 14, offsetX: 0, offsetY: 0 },
     droneB: { row: 4, width: 96, height: 72, radius: 14, offsetX: 0, offsetY: 0 },
+    cleaningRobot: { radius: 18 },
+    barrageRobot: { radius: 20 },
+    disciplineRobot: { radius: 18 },
+    glassesEnforcer: { radius: 24 },
+    yankeeEnforcer: { radius: 25 },
   };
   const HUMANOID_MIN_Y = Math.round(HEIGHT * 0.68);
   const HUMANOID_MAX_Y = Math.round(HEIGHT * 0.9);
   const HUMANOID_CENTER_Y = Math.round((HUMANOID_MIN_Y + HUMANOID_MAX_Y) / 2);
+  const STAGE_TWO_GROUND_MIN_Y = Math.round(HEIGHT * 0.76);
+  const STAGE_TWO_GROUND_MAX_Y = Math.round(HEIGHT * 0.9);
   const BOSS_MIN_Y = HUMANOID_MIN_Y - BOSS_SPRITE_FOOT_OFFSET_Y;
   const BOSS_MAX_Y = HUMANOID_MAX_Y - BOSS_SPRITE_FOOT_OFFSET_Y;
   const BOSS_CENTER_Y = Math.round((BOSS_MIN_Y + BOSS_MAX_Y) / 2);
   const BOSS_MOVE_AMPLITUDE = Math.round((BOSS_MAX_Y - BOSS_MIN_Y) / 2);
-  const HUMANOID_ENEMY_TYPES = new Set(["twintail", "visorGlasses"]);
+  const HUMANOID_ENEMY_TYPES = new Set(["twintail", "visorGlasses", "glassesEnforcer", "yankeeEnforcer"]);
   const PLAYER_SPRITE_ROWS_BY_STATE = {
     forward: 0,
     backward: 1,
@@ -106,13 +131,13 @@
   const BOSS_SPRITE_FRAME_OFFSETS = {
     normal: [
       { x: 0, y: 0 },
-      { x: 20, y: 0 },
-      { x: 41, y: 0 },
+      { x: 0, y: 0 },
+      { x: 0, y: 0 },
     ],
     powered: [
       { x: 0, y: 0 },
-      { x: 6, y: 0 },
-      { x: 27, y: 0 },
+      { x: 0, y: 0 },
+      { x: 0, y: 0 },
     ],
   };
 
@@ -135,18 +160,22 @@
     { top: 0.34, bottom: 0.82, strength: 0.08 },
     { top: 0.72, bottom: 1, strength: 0.16 },
   ];
+  const START_PHASES = new Set([
+    "wave1",
+    "midBossDialogue",
+    "midBoss",
+    "wave2",
+    "bossDialogue",
+    "boss",
+    "bossDefeatedDialogue",
+  ]);
 
-  const phasePlan = {
-    wave1: 15,
-    wave2: 7,
-    midBossTarget: 20,
-    midBossRetreatDamage: 10,
-    bossPhaseTarget: 15,
-    bossDefeatTarget: 25,
-  };
+  const phasePlan = makeStagePlan(CONFIG.stages[1]);
+  const STAGE_TWO_PLAN = makeStagePlan(CONFIG.stages[2]);
 
   const state = {
     mode: "title",
+    stage: 1,
     phase: "wave1",
     phaseTime: 0,
     elapsed: 0,
@@ -167,27 +196,36 @@
     dialogueIndex: 0,
     dialogueTimer: 0,
     dialogueAutoSeconds: DIALOGUE_AUTO_SECONDS,
+    lifeRecovery: null,
     message: "",
   };
 
-  const dialogues = {
-    midBoss: [
-      { speaker: "朝比奈 つばめ", line: "ここから先はテニス部のコートよ。無断で通すわけないでしょ。" },
-    ],
-    boss: [
-      { speaker: "朝比奈 つばめ", line: "まだ立ってるなんてね。次は本気のスマッシュで沈める。" },
-      { speaker: "黒羽 凛", line: "御門院へ続く道を、あなたで止めるつもりはない。" },
-    ],
-  };
+  const dialogues = CONFIG.dialogues;
+
+  function makeStagePlan(config) {
+    return {
+      wave1: config.wave1Seconds,
+      wave2: config.wave2Seconds,
+      wave1SpawnInterval: config.wave1SpawnInterval,
+      wave2SpawnInterval: config.wave2SpawnInterval,
+      midBossTarget: config.midBossHp,
+      midBossRetreatDamage: config.midBossRetreatDamage,
+      bossPhaseTarget: config.bossPhaseChangeHp,
+      bossDefeatTarget: config.bossHp,
+    };
+  }
 
   function makePlayer() {
     return {
       x: 86,
       y: HUMANOID_CENTER_Y,
-      lives: 3,
+      life: CONFIG.player.life,
+      lifeWipe: null,
+      lifeReveal: null,
       invincible: 0,
       flinchTime: 0,
       throwTime: 0,
+      upAimChain: 0,
       chargeTime: 0,
       dashCooldown: 0,
       wasCharging: false,
@@ -202,8 +240,9 @@
     };
   }
 
-  function resetGame() {
+  function resetGame(stage = 1) {
     state.mode = "playing";
+    state.stage = clamp(Math.round(Number(stage) || 1), 1, 3);
     state.phase = "wave1";
     state.phaseTime = 0;
     state.elapsed = 0;
@@ -221,28 +260,65 @@
     state.enemyBullets = [];
     state.particles = [];
     state.boss = null;
+    state.lifeRecovery = null;
     state.message = "";
   }
 
-  function startGame() {
+  async function startGame(options = {}) {
+    bulletPatterns = bulletPatterns || (await bulletPatternsPromise);
     ensureAudioContext();
-    resetGame();
+    const requestedPhase = options.phase || "wave1";
+    const phase = START_PHASES.has(requestedPhase) ? requestedPhase : "wave1";
+    resetGame(options.stage);
     titleScreen.hidden = true;
     gameScreen.hidden = false;
     dialogueBox.hidden = true;
+    if (phase === "midBossDialogue") {
+      startDialogue("midBoss", "midBoss");
+    } else if (phase === "bossDialogue") {
+      startDialogue("boss", "boss");
+    } else if (phase === "bossDefeatedDialogue") {
+      startBossDefeatedDialogue();
+    } else {
+      setPhase(phase);
+    }
     window.requestAnimationFrame(loop);
   }
 
   function startDialogue(kind, nextPhase) {
     state.mode = "dialogue";
-    enemyPortrait.src =
-      kind === "boss" ? "assets/dialogue-tsubame-boss.png" : "assets/dialogue-tsubame-midboss.png";
-    enemyPortrait.alt = "朝比奈 つばめ";
+    const dialogueKey = getDialogueKey(kind);
+    const bossPortrait = kind === "boss" || kind === "bossDefeated";
+    enemyPortrait.src = state.stage === 2
+      ? kind === "midBoss"
+        ? "assets/dialogue-ritsuko-midboss.png"
+        : "assets/dialogue-sayo-boss.png"
+      : kind === "bossDefeated"
+        ? "assets/dialogue-tsubame-defeated.png"
+        : bossPortrait ? "assets/dialogue-tsubame-boss.png" : "assets/dialogue-tsubame-midboss.png";
+    enemyPortrait.alt = state.stage === 2 ? (bossPortrait ? "一文字 小夜" : "鬼塚 律子") : "朝比奈 つばめ";
     state.dialogueAutoSeconds = kind === "midBoss" ? MID_BOSS_DIALOGUE_AUTO_SECONDS : DIALOGUE_AUTO_SECONDS;
-    state.dialogue = dialogues[kind].map((entry) => ({ ...entry, nextPhase }));
+    state.dialogue = dialogues[dialogueKey].map((entry) => ({ ...entry, nextPhase }));
     state.dialogueIndex = 0;
     state.dialogueTimer = 0;
     showDialogueLine();
+  }
+
+  function getDialogueKey(kind) {
+    if (kind === "bossDefeated" && state.stage >= FINAL_STAGE) return "finalBossDefeated";
+    if (state.stage === 2) {
+      if (kind === "bossDefeated") return "stage2BossDefeated";
+      return `stage2${kind === "boss" ? "Boss" : "MidBoss"}`;
+    }
+    return kind;
+  }
+
+  function startBossDefeatedDialogue() {
+    state.knives = [];
+    state.enemies = [];
+    state.enemyBullets = [];
+    state.boss = null;
+    startDialogue("bossDefeated", state.stage < FINAL_STAGE ? "nextStage" : "gameClear");
   }
 
   function showDialogueLine() {
@@ -262,6 +338,10 @@
     const nextPhase = state.dialogue[state.dialogue.length - 1].nextPhase;
     dialogueBox.hidden = true;
     state.mode = "playing";
+    if (nextPhase === "nextStage" || nextPhase === "gameClear") {
+      startLifeRecovery(nextPhase);
+      return;
+    }
     setPhase(nextPhase);
   }
 
@@ -282,6 +362,10 @@
     state.enemyBullets = [];
     state.spawnTimer = 0.25;
     if (phase === "wave1" || phase === "wave2") state.waveSpawnCounts[phase] = 0;
+    if (state.stage === 2) {
+      setStageTwoPhase(phase);
+      return;
+    }
     if (phase === "midBoss") {
       state.boss = makeBoss("朝比奈 つばめ", phasePlan.midBossTarget, 0);
       state.message = "中ボス 朝比奈つばめ";
@@ -330,6 +414,18 @@
     } else if (kind === "bossSmash") {
       playNoiseHit(audio, 0.16, 0.12, "bandpass", 720, 0.2);
       playToneSweep(audio, 0.14, 170, 86, 0.11, "sine");
+    } else if (kind === "robotSpin") {
+      playNoiseHit(audio, 0.22, 0.18, "bandpass", 420, 0.08);
+      playToneSweep(audio, 0.18, 110, 280, 0.045, "square");
+    } else if (kind === "schoolTool") {
+      playNoiseHit(audio, 0.08, 0.055, "highpass", 2100, 0.09);
+      playToneSweep(audio, 0.09, 620, 260, 0.045, "triangle");
+    } else if (kind === "shinaiThrow") {
+      playNoiseHit(audio, 0.12, 0.09, "bandpass", 980, 0.11);
+      playToneSweep(audio, 0.1, 360, 150, 0.04, "sawtooth");
+    } else if (kind === "swordWave") {
+      playNoiseHit(audio, 0.14, 0.1, "highpass", 1400, 0.13);
+      playToneSweep(audio, 0.13, 520, 130, 0.07, "sawtooth");
     } else {
       playNoiseHit(audio, 0.1, 0.085, "bandpass", 1150, 0.12);
       playToneSweep(audio, 0.08, 260, 160, 0.055, "sine");
@@ -379,6 +475,14 @@
     if (!audio) return;
     playNoiseHit(audio, 0.18, 0.12, "highpass", 2800, 0.11);
     playToneSweep(audio, 0.14, 520, 980, 0.035, "sawtooth");
+  }
+
+  function playLifeRecoverySound() {
+    const audio = ensureAudioContext();
+    if (!audio) return;
+    playNoiseHit(audio, 0.16, 0.12, "bandpass", 760, 0.055);
+    playToneSweep(audio, 0.18, 210, 310, 0.045, "sine");
+    window.setTimeout(() => playToneSweep(audio, 0.12, 440, 720, 0.035, "triangle"), 110);
   }
 
   function updateDroneLoopSound() {
@@ -511,7 +615,8 @@
 
   function shootKnife() {
     playShotSound("knife");
-    const angle = getPlayerAimAngle();
+    const angle = getPlayerAimAngle(true);
+    if (angle < 0) state.player.upAimChain = PLAYER_UP_AIM_CHAIN_SECONDS;
     if (canShowThrowMotion()) state.player.throwTime = PLAYER_THROW_SECONDS;
     state.knives.push({
       x: state.player.x + 34,
@@ -522,15 +627,52 @@
     });
   }
 
-  function getPlayerAimAngle() {
-    return getVerticalAimSign() * PLAYER_AIM_ANGLE;
+  function getPlayerAimAngle(adjustForEnemy = false) {
+    const aimingHorizontally =
+      state.keys.has("ArrowRight") ||
+      state.keys.has("KeyD");
+    if (aimingHorizontally) return 0;
+    const aimingUp = state.keys.has("ArrowUp") || state.keys.has("KeyW");
+    if (!aimingUp && state.player.upAimChain <= 0) return 0;
+    return adjustForEnemy ? getAdjustedUpAimAngle() : -PLAYER_AIM_ANGLE;
   }
 
-  function getVerticalAimSign() {
-    const aimingUp = state.keys.has("ArrowUp") || state.keys.has("KeyW");
-    const aimingDown = state.keys.has("ArrowDown") || state.keys.has("KeyS");
-    if (aimingUp === aimingDown) return 0;
-    return aimingUp ? -1 : 1;
+  function setStageTwoPhase(phase) {
+    if (phase === "midBoss") {
+      state.boss = makeBoss("鬼塚 律子", STAGE_TWO_PLAN.midBossTarget, 2);
+      state.message = "中ボス 鬼塚律子";
+    } else if (phase === "boss") {
+      state.boss = makeBoss("一文字 小夜", STAGE_TWO_PLAN.bossDefeatTarget, 3);
+      state.boss.dashTimer = CONFIG.bosses.sayo.dashIntervalSeconds;
+      state.boss.dashState = "idle";
+      state.message = "ボス 一文字小夜";
+    } else {
+      state.boss = null;
+      state.message = phase === "wave2" ? "風紀ロボ 第二陣" : "お掃除ロボ";
+    }
+  }
+
+  function getAdjustedUpAimAngle() {
+    const origin = {
+      x: state.player.x + 34,
+      y: state.player.y - 22,
+    };
+    let closestTarget = null;
+    let closestDistance = Infinity;
+    const targets = state.boss ? [...state.enemies, state.boss] : state.enemies;
+    for (const target of targets) {
+      if (target.dead || target.x <= origin.x || target.y >= state.player.y) continue;
+      const dx = target.x - origin.x;
+      const dy = target.y - origin.y;
+      const angle = Math.atan2(dy, dx);
+      if (angle <= -PLAYER_AIM_ANGLE || angle >= 0) continue;
+      const targetDistance = Math.hypot(dx, dy);
+      if (targetDistance < closestDistance) {
+        closestTarget = angle;
+        closestDistance = targetDistance;
+      }
+    }
+    return closestTarget ?? -PLAYER_AIM_ANGLE;
   }
 
   function canShowThrowMotion() {
@@ -547,39 +689,56 @@
     const enemyType = selectRegularEnemyType(state.phase, spawnIndex);
     const y = randomEnemyY(enemyType);
     const enemyConfig = ENEMY_SPRITE_CONFIG[enemyType];
+    const gameplay = getEnemyGameplay(enemyType);
     state.enemies.push({
       id: state.nextEnemyId,
       x: WIDTH + 28,
       y,
-      vx: -115 - Math.random() * 55,
+      vx: getEnemySpawnSpeed(enemyType),
       r: enemyConfig.radius,
-      fireTimer: 0.45 + Math.random() * 0.8,
+      hp: gameplay.hp,
+      fireTimer: getEnemyFirstShotTimer(gameplay),
       type: enemyType,
       wave: state.phase,
       spawnIndex,
       usedSpecial: false,
+      chargeState: enemyType === "cleaningRobot" ? "windup" : "idle",
+      windupTime: enemyType === "cleaningRobot" ? gameplay.windupSeconds : 0,
+      groundY: y,
+      zigzagDirection: Math.random() < 0.5 ? -1 : 1,
+      motionTime: enemyType === "disciplineRobot"
+        ? Math.random() * gameplay.jumpSeconds
+        : 0,
     });
+    if (enemyType === "cleaningRobot") playShotSound("robotSpin");
     state.nextEnemyId += 1;
   }
 
   function spawnReinforcementEnemy(type, y) {
     const enemyConfig = ENEMY_SPRITE_CONFIG[type];
+    const gameplay = getEnemyGameplay(type);
     state.enemies.push({
       id: state.nextEnemyId,
       x: WIDTH + 28,
       y: clampEnemyY(type, y),
-      vx: -125,
+      vx: -gameplay.moveSpeed,
       r: enemyConfig.radius,
+      hp: gameplay.hp,
       fireTimer: 0.75,
       type,
       wave: "midBossReinforcement",
       spawnIndex: 1,
       usedSpecial: false,
+      chargeState: "rush",
+      windupTime: 0,
     });
     state.nextEnemyId += 1;
   }
 
   function randomEnemyY(type) {
+    if (type === "cleaningRobot" || type === "disciplineRobot") {
+      return STAGE_TWO_GROUND_MIN_Y + Math.random() * (STAGE_TWO_GROUND_MAX_Y - STAGE_TWO_GROUND_MIN_Y);
+    }
     if (isHumanoidEnemyType(type)) {
       return HUMANOID_MIN_Y + Math.random() * (HUMANOID_MAX_Y - HUMANOID_MIN_Y);
     }
@@ -604,6 +763,11 @@
   }
 
   function selectRegularEnemyType(wave, spawnIndex) {
+    if (state.stage === 2) {
+      if (wave === "wave2") return "disciplineRobot";
+      if (spawnIndex === 10 || spawnIndex === 14) return "barrageRobot";
+      return "cleaningRobot";
+    }
     if (wave === "wave2") return "droneB";
     return "droneA";
   }
@@ -647,20 +811,24 @@
   }
 
   function regularEnemyShoot(enemy) {
+    if (state.stage === 2) {
+      stageTwoEnemyShoot(enemy);
+      return;
+    }
     if (enemy.spawnIndex <= 3) {
-      enemyShoot(enemy, 230);
+      enemyShoot(enemy, getEnemyGameplay(enemy.type).bulletSpeed);
       return;
     }
     const canUseSpecial = !enemy.usedSpecial && enemy.x >= WIDTH / 2;
     const useSpecial = Math.random() < 0.25;
     if (!canUseSpecial || !useSpecial) {
-      enemyShoot(enemy, 230);
+      enemyShoot(enemy, getEnemyGameplay(enemy.type).bulletSpeed);
     } else if (enemy.wave === "wave2") {
-      shootEightWay(enemy, 175);
+      shootEightWay(enemy, getEnemyGameplay(enemy.type).radialBulletSpeed);
       enemy.usedSpecial = true;
       reverseEnemyDirection(enemy);
     } else {
-      shootStraightTwoWay(enemy, 230);
+      shootStraightTwoWay(enemy, getEnemyGameplay(enemy.type).bulletSpeed);
       enemy.usedSpecial = true;
       reverseEnemyDirection(enemy);
     }
@@ -677,19 +845,25 @@
 
   function bossShoot(dt) {
     const boss = state.boss;
+    if (state.stage === 2) {
+      stageTwoBossShoot(boss, dt);
+      return;
+    }
     boss.fireTimer -= dt;
     boss.moveTimer += dt;
     boss.y = clampBossY(BOSS_CENTER_Y + Math.sin(boss.moveTimer * 1.9) * BOSS_MOVE_AMPLITUDE);
     if (boss.fireTimer > 0) return;
 
     if (boss.rank === 0) {
-      boss.fireTimer = 0.62;
-      enemyShoot(boss, 245, "bossSmash");
+      boss.fireTimer = CONFIG.bosses.stage1MidBoss.shotIntervalSeconds;
+      enemyShoot(boss, CONFIG.bosses.stage1MidBoss.bulletSpeed, "bossSmash");
       return;
     }
 
     boss.changed = boss.hp <= phasePlan.bossPhaseTarget;
-    boss.fireTimer = boss.changed ? 0.32 : 0.52;
+    boss.fireTimer = boss.changed
+      ? CONFIG.bosses.stage1Boss.poweredShotIntervalSeconds
+      : CONFIG.bosses.stage1Boss.normalShotIntervalSeconds;
     playShotSound("bossSmash");
     const angles = boss.changed ? [-0.34, -0.17, 0, 0.17, 0.34] : [-0.18, 0, 0.18];
     for (const angle of angles) {
@@ -697,16 +871,26 @@
       state.enemyBullets.push({
         x: boss.x - 28,
         y: boss.y,
-        vx: Math.cos(base) * (boss.changed ? 275 : 240),
-        vy: Math.sin(base) * (boss.changed ? 275 : 240),
+        vx: Math.cos(base) * (boss.changed
+          ? CONFIG.bosses.stage1Boss.poweredBulletSpeed
+          : CONFIG.bosses.stage1Boss.normalBulletSpeed),
+        vy: Math.sin(base) * (boss.changed
+          ? CONFIG.bosses.stage1Boss.poweredBulletSpeed
+          : CONFIG.bosses.stage1Boss.normalBulletSpeed),
         r: 8,
       });
     }
   }
 
   function update(dt) {
+    updateLifeIndicatorAnimations(dt);
     if (state.mode === "dialogue") {
       updateDialogue(dt);
+      fadeOutDroneLoopSound();
+      return;
+    }
+    if (state.mode === "lifeRecover") {
+      updateLifeRecovery(dt);
       fadeOutDroneLoopSound();
       return;
     }
@@ -720,6 +904,7 @@
     state.player.invincible = Math.max(0, state.player.invincible - dt);
     state.player.flinchTime = Math.max(0, state.player.flinchTime - dt);
     state.player.throwTime = Math.max(0, state.player.throwTime - dt);
+    state.player.upAimChain = Math.max(0, state.player.upAimChain - dt);
     state.player.dashCooldown = Math.max(0, state.player.dashCooldown - dt);
 
     updatePlayer(dt);
@@ -846,14 +1031,15 @@
   }
 
   function updatePhase(dt) {
+    const plan = state.stage === 2 ? STAGE_TWO_PLAN : phasePlan;
     if (state.phase === "wave1") {
-      if (state.phaseTime < phasePlan.wave1) spawnWaveEnemies(dt, 1.35);
-      if (state.phaseTime >= phasePlan.wave1 && isStageClearForBoss()) startDialogue("midBoss", "midBoss");
+      if (state.phaseTime < plan.wave1) spawnWaveEnemies(dt, plan.wave1SpawnInterval);
+      if (state.phaseTime >= plan.wave1 && isStageClearForBoss()) startDialogue("midBoss", "midBoss");
     } else if (state.phase === "wave2") {
-      if (state.phaseTime < phasePlan.wave2) spawnWaveEnemies(dt, 1.05);
-      if (state.phaseTime >= phasePlan.wave2 && isStageClearForBoss()) startDialogue("boss", "boss");
+      if (state.phaseTime < plan.wave2) spawnWaveEnemies(dt, plan.wave2SpawnInterval);
+      if (state.phaseTime >= plan.wave2 && isStageClearForBoss()) startDialogue("boss", "boss");
     } else if (state.phase === "midBoss") {
-      if (state.boss && state.boss.retreating) {
+      if (state.stage !== 2 && state.boss && state.boss.retreating) {
         updateMidBossRetreat(dt);
         if (state.boss.x > WIDTH + 120 && state.enemies.length === 0) setPhase("wave2");
         return;
@@ -894,19 +1080,63 @@
 
   function updateEnemies(dt) {
     for (const enemy of state.enemies) {
+      if (enemy.type === "cleaningRobot" && enemy.chargeState === "windup") {
+        enemy.windupTime -= dt;
+        if (enemy.windupTime <= 0) {
+          enemy.chargeState = "charge";
+          enemy.vx = -getEnemyGameplay(enemy.type).chargeSpeed;
+        }
+        continue;
+      }
       enemy.x += enemy.vx * dt;
+      updateStageTwoEnemyMovement(enemy, dt);
       enemy.y = clampEnemyY(enemy.type, enemy.y);
       enemy.fireTimer -= dt;
       if (enemy.fireTimer <= 0) {
-        enemy.fireTimer = 1.55 + Math.random() * 0.9;
+        const gameplay = getEnemyGameplay(enemy.type);
+        enemy.fireTimer = gameplay.shotIntervalMinSeconds === undefined
+          ? 999
+          : randomBetween(gameplay.shotIntervalMinSeconds, gameplay.shotIntervalMaxSeconds);
         regularEnemyShoot(enemy);
       }
     }
     state.enemies = state.enemies.filter((enemy) => enemy.x > -40 && enemy.x < WIDTH + 50);
   }
 
+  function getEnemyGameplay(type) {
+    return CONFIG.enemies[type];
+  }
+
+  function getEnemyFirstShotTimer(gameplay) {
+    if (gameplay.firstShotMinSeconds === undefined) return 999;
+    return randomBetween(gameplay.firstShotMinSeconds, gameplay.firstShotMaxSeconds);
+  }
+
+  function randomBetween(min, max) {
+    return min + Math.random() * (max - min);
+  }
+
+  function updateStageTwoEnemyMovement(enemy, dt) {
+    if (enemy.type === "cleaningRobot") {
+      enemy.y += enemy.zigzagDirection * getEnemyGameplay(enemy.type).zigzagSpeed * dt;
+      if (enemy.y <= STAGE_TWO_GROUND_MIN_Y || enemy.y >= STAGE_TWO_GROUND_MAX_Y) {
+        enemy.y = clamp(enemy.y, STAGE_TWO_GROUND_MIN_Y, STAGE_TWO_GROUND_MAX_Y);
+        enemy.zigzagDirection *= -1;
+      }
+      return;
+    }
+    if (enemy.type === "disciplineRobot") {
+      enemy.motionTime += dt;
+      const gameplay = getEnemyGameplay(enemy.type);
+      const jumpProgress = (enemy.motionTime % gameplay.jumpSeconds) / gameplay.jumpSeconds;
+      enemy.y = enemy.groundY - Math.sin(jumpProgress * Math.PI) * gameplay.jumpHeight;
+    }
+  }
+
   function updateEnemyBullets(dt) {
     for (const ball of state.enemyBullets) {
+      ball.vy += (ball.gravity || 0) * dt;
+      ball.spin = (ball.spin || 0) + dt * 9;
       ball.x += ball.vx * dt;
       ball.y += ball.vy * dt;
     }
@@ -931,9 +1161,7 @@
       for (const enemy of state.enemies) {
         if (distance(knife, enemy) < knife.r + enemy.r) {
           knife.dead = true;
-          enemy.dead = true;
-          state.score += 100;
-          burst(enemy.x, enemy.y, "#f8d84a");
+          damageEnemy(enemy, 1);
         }
       }
       if (state.boss && distance(knife, state.boss) < knife.r + state.boss.r) {
@@ -961,6 +1189,9 @@
           break;
         }
       }
+      if (state.boss && distance(state.boss, hurtPoint) < state.boss.r + PLAYER_HURT_RADIUS) {
+        damagePlayer();
+      }
     }
     state.enemyBullets = state.enemyBullets.filter((ball) => !ball.dead);
     state.enemies = state.enemies.filter((enemy) => !enemy.dead);
@@ -977,7 +1208,7 @@
       if (distance(state.player, enemy) < PLAYER_RADIUS + enemy.r) {
         state.player.dashHits.add(`enemy-${enemy.id}`);
         enemy.dead = true;
-        state.score += 100;
+        state.score += CONFIG.score.enemyDefeat;
         burst(enemy.x, enemy.y, "#7ee8ff", 16);
       }
     }
@@ -991,6 +1222,10 @@
     if (!state.boss || state.boss.invincible) return;
     state.boss.hp -= amount;
     burst(x, y, color, count);
+    if (state.stage === 2) {
+      damageStageTwoBoss();
+      return;
+    }
     if (state.phase === "midBoss" && state.boss.hp <= phasePlan.midBossTarget - phasePlan.midBossRetreatDamage) {
       triggerMidBossReinforcements();
       return;
@@ -1028,20 +1263,249 @@
       return;
     }
     playVoiceLine("うわーっ", "bright");
+    startBossDefeatedDialogue();
+  }
+
+  function damageStageTwoBoss() {
+    if (!state.boss) return;
+    if (state.phase === "midBoss" && state.boss.hp <= state.boss.maxHp / 2) {
+      triggerStageTwoMidBossReinforcements();
+    }
+    if (state.boss.hp <= 0) defeatBoss();
+  }
+
+  function triggerStageTwoMidBossReinforcements() {
+    if (!state.boss || state.boss.reinforcementsCalled) return;
+    state.boss.reinforcementsCalled = true;
+    state.boss.fireTimer = CONFIG.bosses.ritsuko.reinforcementPauseSeconds;
+    state.message = "律子 援軍招集";
+    spawnReinforcementEnemy("glassesEnforcer", HEIGHT * 0.72);
+    spawnReinforcementEnemy("yankeeEnforcer", HEIGHT * 0.84);
+  }
+
+  function stageTwoBossShoot(boss, dt) {
+    boss.fireTimer -= dt;
+    boss.moveTimer += dt;
+    boss.y = clampBossY(BOSS_CENTER_Y + Math.sin(boss.moveTimer * 1.7) * BOSS_MOVE_AMPLITUDE);
+    if (boss.rank === 2) {
+      const powered = boss.hp <= CONFIG.bosses.ritsuko.poweredHp;
+      if (powered && !boss.changed) state.message = "律子 強化";
+      boss.changed = powered;
+      if (boss.fireTimer > 0) return;
+      boss.fireTimer = boss.changed
+        ? CONFIG.bosses.ritsuko.poweredShotIntervalSeconds
+        : CONFIG.bosses.ritsuko.normalShotIntervalSeconds;
+      playShotSound("schoolTool");
+      for (const [index, offset] of [-0.2, 0, 0.2].entries()) {
+        pushAimedBullet(
+          boss,
+          CONFIG.bosses.ritsuko.bulletSpeed + index * CONFIG.bosses.ritsuko.bulletSpeedStep,
+          offset,
+          ["pencil", "compass", "ruler"][index]
+        );
+      }
+      return;
+    }
+    updateSayoAttack(boss, dt);
+  }
+
+  function damageEnemy(enemy, amount) {
+    enemy.hp = (enemy.hp || 1) - amount;
+    burst(enemy.x, enemy.y, "#f8d84a");
+    if (enemy.hp > 0) return;
+    enemy.dead = true;
+    state.score += CONFIG.score.enemyDefeat;
+  }
+
+  function updateSayoAttack(boss, dt) {
+    boss.changed = boss.hp <= STAGE_TWO_PLAN.bossPhaseTarget;
+    if (!boss.changed) {
+      if (boss.fireTimer > 0) return;
+      boss.fireTimer = CONFIG.bosses.sayo.shockwaveIntervalSeconds;
+      executeBulletPattern(boss, "sayoShockwave");
+      return;
+    }
+    boss.dashTimer -= dt;
+    if (boss.dashState === "forward") {
+      boss.x -= CONFIG.bosses.sayo.dashForwardSpeed * dt;
+      boss.invincible = true;
+      if (boss.x <= WIDTH * 0.54) {
+        boss.dashState = "return";
+        boss.invincible = false;
+      }
+      return;
+    }
+    if (boss.dashState === "return") {
+      boss.x += CONFIG.bosses.sayo.dashReturnSpeed * dt;
+      if (boss.x >= WIDTH - 130) {
+        boss.x = WIDTH - 130;
+        boss.dashState = "idle";
+        boss.dashTimer = CONFIG.bosses.sayo.dashIntervalSeconds;
+      }
+      return;
+    }
+    if (boss.dashTimer <= 0) {
+      playShotSound("swordWave");
+      boss.dashState = "forward";
+      boss.invincible = true;
+    }
+  }
+
+  function pushAimedBullet(source, speed, angleOffset, kind, radius = 8) {
+    const angle = Math.atan2(state.player.y - source.y, state.player.x - source.x) + angleOffset;
+    state.enemyBullets.push({
+      x: source.x - 22,
+      y: source.y,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed,
+      kind,
+      spin: 0,
+      r: radius,
+    });
+  }
+
+  function executeBulletPattern(source, patternName) {
+    const pattern = bulletPatterns && bulletPatterns[patternName];
+    if (!pattern) throw new Error(`Unknown bullet pattern: ${patternName}`);
+    if (pattern.sound) playShotSound(pattern.sound);
+    for (const action of pattern.actions) {
+      if (action.fire === "aimed") {
+        pushPatternAimedBullet(source, action, 0);
+      } else if (action.fire === "aimedSpread") {
+        for (const angleOffset of action.angleOffsets) {
+          pushPatternAimedBullet(source, action, angleOffset);
+        }
+      } else if (action.fire === "radial") {
+        for (let index = 0; index < action.count; index += 1) {
+          const angle = (Math.PI * 2 * index) / action.count;
+          pushPatternBullet(source, action, angle);
+        }
+      }
+      if (action.retreat) source.vx = action.retreat.speed;
+      if (action.finish) Object.assign(source, action.finish);
+    }
+  }
+
+  function pushPatternAimedBullet(source, action, angleOffset) {
+    const angle = Math.atan2(state.player.y - source.y, state.player.x - source.x) + angleOffset;
+    pushPatternBullet(source, action, angle);
+  }
+
+  function pushPatternBullet(source, action, angle) {
+    state.enemyBullets.push({
+      x: source.x + (action.originX || 0),
+      y: source.y + (action.originY || 0),
+      vx: Math.cos(angle) * action.speed,
+      vy: Math.sin(angle) * action.speed,
+      kind: action.kind,
+      spin: 0,
+      r: action.radius || 8,
+    });
+  }
+
+  function stageTwoEnemyShoot(enemy) {
+    if (enemy.type === "barrageRobot") {
+      if (enemy.usedSpecial) return;
+      executeBulletPattern(enemy, "barrageRobotExit");
+      return;
+    }
+    if (enemy.type !== "disciplineRobot") return;
+    playShotSound("shinaiThrow");
+    state.enemyBullets.push({
+      x: enemy.x - 18,
+      y: enemy.y - 8,
+      vx: -getEnemyGameplay(enemy.type).shinaiSpeedX,
+      vy: -getEnemyGameplay(enemy.type).shinaiSpeedY,
+      gravity: getEnemyGameplay(enemy.type).shinaiGravity,
+      spin: 0,
+      kind: "shinai",
+      r: 10,
+    });
+  }
+
+  function getEnemySpawnSpeed(type) {
+    if (type === "cleaningRobot") return 0;
+    const gameplay = getEnemyGameplay(type);
+    return -randomBetween(gameplay.moveSpeedMin, gameplay.moveSpeedMax);
+  }
+
+  function advanceToNextStage() {
+    state.stage += 1;
+    state.mode = "playing";
+    state.player.invincible = 1.5;
+    state.player.chargeTime = 0;
+    state.player.dashCooldown = 0;
+    state.player.dashState = "none";
+    state.player.trail = [];
+    setPhase("wave1");
+    state.message = `${state.stage}面 開始`;
+  }
+
+  function startLifeRecovery(nextPhase) {
+    const recovery = Math.min(CONFIG.player.bossDefeatLifeRecovery, PLAYER_MAX_LIFE - state.player.life);
+    if (recovery <= 0) {
+      finishPostBossTransition(nextPhase);
+      return;
+    }
+    state.mode = "lifeRecover";
+    state.message = "LIFE RECOVER";
+    state.lifeRecovery = {
+      nextPhase,
+      remaining: recovery,
+      timer: 0.24,
+    };
+  }
+
+  function updateLifeRecovery(dt) {
+    if (!state.lifeRecovery) return;
+    state.lifeRecovery.timer -= dt;
+    if (state.lifeRecovery.timer > 0) return;
+    if (state.lifeRecovery.remaining > 0) {
+      state.player.life += 1;
+      state.player.lifeReveal = {
+        index: state.player.life - 1,
+        remaining: LIFE_WIPE_SECONDS,
+      };
+      state.lifeRecovery.remaining -= 1;
+      state.lifeRecovery.timer = LIFE_RECOVERY_STEP_SECONDS;
+      playLifeRecoverySound();
+      return;
+    }
+    finishPostBossTransition(state.lifeRecovery.nextPhase);
+  }
+
+  function finishPostBossTransition(nextPhase) {
+    state.lifeRecovery = null;
+    if (nextPhase === "nextStage") {
+      advanceToNextStage();
+      return;
+    }
     state.mode = "clear";
-    state.message = "1面クリア";
+    state.message = "GAME CLEAR";
+  }
+
+  function updateLifeIndicatorAnimations(dt) {
+    for (const key of ["lifeWipe", "lifeReveal"]) {
+      if (!state.player[key]) continue;
+      state.player[key].remaining -= dt;
+      if (state.player[key].remaining <= 0) state.player[key] = null;
+    }
   }
 
   function damagePlayer() {
     const hitX = state.player.x;
     const hitY = state.player.y;
     playVoiceLine("くぅっ", "cool");
-    state.player.lives -= 1;
-    state.player.invincible = 1.4;
+    state.player.life -= 1;
+    state.player.lifeWipe = {
+      index: state.player.life,
+      remaining: LIFE_WIPE_SECONDS,
+    };
+    state.player.invincible = CONFIG.player.hitInvincibleSeconds;
     state.player.flinchTime = PLAYER_FLINCH_SECONDS;
     state.player.x = clamp(state.player.x - PLAYER_KNOCKBACK_DISTANCE, 34, WIDTH * 0.48);
     burst(hitX, hitY, "#ff5278", 18);
-    if (state.player.lives <= 0) {
+    if (state.player.life <= 0) {
       state.mode = "gameOver";
       state.message = "ゲームオーバー";
     }
@@ -1092,8 +1556,75 @@
   }
 
   function drawBackground() {
+    if (state.stage === 2) {
+      drawStageTwoBackground();
+      return;
+    }
     if (drawStageOneBackground()) return;
     drawFallbackBackground();
+  }
+
+  function drawStageTwoBackground() {
+    const stop = getStageTwoProgress();
+    const gradient = ctx.createLinearGradient(0, 0, 0, HEIGHT);
+    gradient.addColorStop(0, lerpColor([245, 132, 88], [20, 24, 54], stop));
+    gradient.addColorStop(1, lerpColor([92, 83, 120], [8, 12, 28], stop));
+    ctx.fillStyle = gradient;
+    pixelRect(0, 0, WIDTH, HEIGHT);
+
+    ctx.fillStyle = "rgba(255, 236, 156, 0.58)";
+    for (let x = -80 - stop * 160; x < WIDTH; x += 210) {
+      pixelRect(x, 86, 74, 22);
+      pixelRect(x + 24, 126, 92, 16);
+    }
+
+    ctx.fillStyle = "#51354b";
+    pixelRect(0, 86, WIDTH, 190);
+    const slide = -stop * 260;
+    for (let i = 0; i < 7; i += 1) {
+      const x = ((i * 176 + slide) % (WIDTH + 220)) - 110;
+      const tidy = stop > i / 8;
+      ctx.fillStyle = tidy ? "#6b5262" : "#5b3146";
+      pixelRect(x, 116, 132, 104);
+      ctx.fillStyle = "#1b2034";
+      pixelRect(x + 10, 130, 112, 76);
+      ctx.fillStyle = tidy ? "#c7d2e6" : "#f0d266";
+      for (let j = 0; j < (tidy ? 2 : 5); j += 1) pixelRect(x + 22 + j * 18, 188 - j * 9, 28, 6);
+    }
+
+    ctx.fillStyle = "#2a2435";
+    pixelRect(0, 276, WIDTH, HEIGHT - 276);
+    ctx.fillStyle = "#7b5364";
+    for (let x = -120 - stop * 420; x < WIDTH + 120; x += 120) {
+      pixelRect(x, 276, 42, 190);
+      pixelRect(x + 28, 276, 8, 190);
+    }
+    ctx.fillStyle = "#3a3145";
+    pixelRect(0, 402, WIDTH, 138);
+    ctx.fillStyle = "#57485a";
+    for (let x = -80; x < WIDTH; x += 88) pixelRect(x + stop * 40, 438, 62, 12);
+
+    if (stop > 0.82) {
+      ctx.fillStyle = "#2a1620";
+      pixelRect(WIDTH - 350, 250, 300, 290);
+      ctx.fillStyle = "#b62236";
+      pixelRect(WIDTH - 286, 364, 170, 176);
+      ctx.fillStyle = "#f5d38c";
+      pixelRect(WIDTH - 332, 250, 264, 18);
+      for (let y = 312; y < 500; y += 38) pixelRect(WIDTH - 332, y, 264, 8);
+    }
+  }
+
+  function getStageTwoProgress() {
+    if (state.phase === "wave1") return clamp(state.phaseTime / STAGE_TWO_PLAN.wave1, 0, 1) * 0.34;
+    if (state.phase === "midBoss") return 0.38;
+    if (state.phase === "wave2") return 0.48 + clamp(state.phaseTime / STAGE_TWO_PLAN.wave2, 0, 1) * 0.34;
+    if (state.phase === "boss") return 1;
+    return 0;
+  }
+
+  function lerpColor(a, b, t) {
+    return `rgb(${a.map((value, index) => Math.round(lerp(value, b[index], t))).join(",")})`;
   }
 
   function drawStageOneBackground() {
@@ -1209,7 +1740,10 @@
     ctx.fillRect(0, 0, WIDTH, 48);
     ctx.fillStyle = "#f5f7ff";
     ctx.font = "700 18px sans-serif";
-    ctx.fillText(`1面 テニスコート  残機 ${state.player.lives}  得点 ${state.score}`, 18, 30);
+    const stageName = state.stage === 2 ? "2面 学校の廊下" : `${state.stage}面 テニスコート`;
+    ctx.fillText(stageName, 18, 30);
+    drawLifeIndicator(250, 9);
+    ctx.fillText(`SCORE ${state.score}`, 500, 30);
     ctx.font = "700 14px sans-serif";
     ctx.fillText("移動: 矢印/WASD  小刀: Z  溜め突進: Space長押し", 18, HEIGHT - 18);
     ctx.textAlign = "right";
@@ -1221,6 +1755,47 @@
       ctx.fillStyle = state.boss.changed ? "#ff5278" : "#f8d84a";
       ctx.fillRect(WIDTH - 340, 54, 300 * (state.boss.hp / state.boss.maxHp), 12);
     }
+  }
+
+  function drawLifeIndicator(x, y) {
+    ctx.fillStyle = "#f5f7ff";
+    ctx.font = "800 15px sans-serif";
+    ctx.fillText("LIFE", x, y + 21);
+    for (let index = 0; index < PLAYER_MAX_LIFE; index += 1) {
+      const iconX = x + 48 + index * 38;
+      drawScarfLifeIcon(iconX, y + 2, "slot");
+      if (index < state.player.life) {
+        const reveal = state.player.lifeReveal && state.player.lifeReveal.index === index
+          ? 1 - state.player.lifeReveal.remaining / LIFE_WIPE_SECONDS
+          : 1;
+        drawClippedScarfLifeIcon(iconX, y + 2, reveal);
+      } else if (state.player.lifeWipe && state.player.lifeWipe.index === index) {
+        drawClippedScarfLifeIcon(iconX, y + 2, state.player.lifeWipe.remaining / LIFE_WIPE_SECONDS);
+      }
+    }
+  }
+
+  function drawClippedScarfLifeIcon(x, y, visibleRatio) {
+    const width = 30;
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(x, y, width * clamp(visibleRatio, 0, 1), 32);
+    ctx.clip();
+    drawScarfLifeIcon(x, y, "active");
+    ctx.restore();
+  }
+
+  function drawScarfLifeIcon(x, y, style) {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.fillStyle = style === "active" ? "#ff5278" : "rgba(255,255,255,0.14)";
+    pixelRect(3, 3, 18, 7);
+    pixelRect(17, 7, 9, 7);
+    pixelRect(18, 12, 7, 17);
+    pixelRect(9, 10, 8, 14);
+    ctx.fillStyle = style === "active" ? "#f8d84a" : "rgba(255,255,255,0.08)";
+    pixelRect(17, 7, 5, 5);
+    ctx.restore();
   }
 
   function phaseLabel() {
@@ -1339,6 +1914,10 @@
     for (const enemy of state.enemies) {
       ctx.save();
       ctx.translate(enemy.x, enemy.y);
+      if (drawStageTwoEnemy(enemy)) {
+        ctx.restore();
+        continue;
+      }
       if (drawStageOneEnemySprite(enemy)) {
         ctx.restore();
         continue;
@@ -1362,7 +1941,62 @@
     }
   }
 
+  function drawStageTwoEnemy(enemy) {
+    if (state.stage !== 2) return false;
+    if (enemy.type === "cleaningRobot") {
+      const spin = enemy.chargeState === "windup" && Math.floor(state.elapsed * 24) % 2;
+      ctx.fillStyle = "#cad5e6";
+      pixelRect(-22, -18, 44, 28);
+      ctx.fillStyle = "#5e6a80";
+      pixelRect(-16, -28, 32, 12);
+      ctx.fillStyle = "#1c2234";
+      pixelRect(-20, 10, 14, 14);
+      pixelRect(6, 10, 14, 14);
+      ctx.fillStyle = spin ? "#7ee8ff" : "#f8d84a";
+      pixelRect(-15, 15, 10, 4);
+      pixelRect(7, 15, 10, 4);
+      ctx.fillStyle = "#d9e5ff";
+      pixelRect(-54, -4, 36, 7);
+      ctx.fillStyle = "#b9a26f";
+      pixelRect(-62, -11, 10, 22);
+    } else if (enemy.type === "barrageRobot") {
+      ctx.fillStyle = "#d9e5ff";
+      pixelRect(-22, -20, 44, 40);
+      ctx.fillStyle = "#5e6a80";
+      pixelRect(-16, -28, 32, 10);
+      ctx.fillStyle = "#ff5278";
+      pixelRect(-9, -12, 18, 8);
+      ctx.fillStyle = "#f8d84a";
+      for (const [x, y] of [[-28, -5], [22, -5], [-5, -26], [-5, 20]]) pixelRect(x, y, 10, 10);
+      ctx.fillStyle = "#1c2234";
+      pixelRect(-18, 20, 12, 10);
+      pixelRect(6, 20, 12, 10);
+    } else if (enemy.type === "disciplineRobot") {
+      ctx.fillStyle = "#dfe5f2";
+      pixelRect(-20, -24, 40, 42);
+      ctx.fillStyle = "#36405a";
+      pixelRect(-16, -31, 32, 10);
+      ctx.fillStyle = "#ff5278";
+      pixelRect(-10, -15, 20, 6);
+      ctx.fillStyle = "#b59258";
+      pixelRect(-34, 8, 58, 6);
+      ctx.fillStyle = "#1c2234";
+      pixelRect(-16, 18, 10, 12);
+      pixelRect(6, 18, 10, 12);
+    } else {
+      ctx.fillStyle = enemy.type === "glassesEnforcer" ? "#c9d8f4" : "#e4a8c1";
+      pixelRect(-16, -42, 32, 28);
+      pixelRect(-24, -14, 48, 54);
+      ctx.fillStyle = "#24263a";
+      pixelRect(-16, 40, 12, 18);
+      pixelRect(4, 40, 12, 18);
+      if (enemy.type === "glassesEnforcer") pixelRect(-14, -29, 28, 5);
+    }
+    return true;
+  }
+
   function drawStageOneEnemySprite(enemy) {
+    if (state.stage === 2) return false;
     if (!stageOneEnemySprite.complete || stageOneEnemySprite.naturalWidth === 0) return false;
 
     const config = ENEMY_SPRITE_CONFIG[enemy.type] || ENEMY_SPRITE_CONFIG.robotB;
@@ -1391,6 +2025,10 @@
     if (!boss) return;
     ctx.save();
     ctx.translate(boss.x, boss.y);
+    if (drawStageTwoBoss(boss)) {
+      ctx.restore();
+      return;
+    }
     if (drawTsubameBossSprite(boss)) {
       ctx.restore();
       return;
@@ -1417,7 +2055,39 @@
     ctx.restore();
   }
 
+  function drawStageTwoBoss(boss) {
+    if (state.stage !== 2) return false;
+    if (boss.rank === 2) {
+      ctx.fillStyle = "#d7d9f4";
+      pixelRect(-20, -48, 40, 34);
+      pixelRect(-30, -14, 60, 72);
+      ctx.fillStyle = "#402c55";
+      pixelRect(-34, -54, 18, 82);
+      pixelRect(16, -54, 18, 82);
+      ctx.fillStyle = "#ff5278";
+      pixelRect(-24, 8, 48, 10);
+    } else {
+      ctx.fillStyle = "#eef3ff";
+      pixelRect(-22, -50, 44, 36);
+      pixelRect(-30, -14, 60, 72);
+      ctx.fillStyle = "#1c2234";
+      pixelRect(-26, -58, 52, 18);
+      ctx.fillStyle = "#c8d7ef";
+      pixelRect(-62, 4, 94, 8);
+      pixelRect(-68, 0, 10, 16);
+      if (boss.changed) {
+        ctx.fillStyle = "#ff5278";
+        pixelRect(-34, 16, 68, 10);
+      }
+    }
+    ctx.fillStyle = "#1c2234";
+    pixelRect(-22, 58, 14, 20);
+    pixelRect(8, 58, 14, 20);
+    return true;
+  }
+
   function drawTsubameBossSprite(boss) {
+    if (state.stage !== 1) return false;
     if (!tsubameBossSprite.complete || tsubameBossSprite.naturalWidth === 0) return false;
 
     const frame = Math.floor(state.elapsed * 7) % BOSS_SPRITE_COLUMNS;
@@ -1442,6 +2112,7 @@
 
   function drawEnemyBullets() {
     for (const ball of state.enemyBullets) {
+      if (drawStageTwoBullet(ball)) continue;
       const spin = state.elapsed * 10 + ball.x * 0.04 + ball.y * 0.02;
       ctx.fillStyle = "#d8fb4b";
       ctx.beginPath();
@@ -1478,6 +2149,45 @@
     }
   }
 
+  function drawStageTwoBullet(ball) {
+    if (state.stage !== 2) return false;
+    ctx.save();
+    ctx.translate(ball.x, ball.y);
+    ctx.rotate(ball.spin || 0);
+    if (ball.kind === "shinai") {
+      ctx.fillStyle = "#b59258";
+      pixelRect(-22, -3, 44, 6);
+      ctx.fillStyle = "#eef3ff";
+      pixelRect(-28, -5, 8, 10);
+    } else if (ball.kind === "shockwave") {
+      ctx.fillStyle = "#7ee8ff";
+      pixelRect(-20, -4, 40, 8);
+      ctx.fillStyle = "#eef3ff";
+      pixelRect(-14, -7, 28, 3);
+    } else if (ball.kind === "robotBullet") {
+      ctx.fillStyle = "#ff5278";
+      pixelRect(-6, -6, 12, 12);
+      ctx.fillStyle = "#f8d84a";
+      pixelRect(-3, -3, 6, 6);
+    } else if (ball.kind === "compass") {
+      ctx.fillStyle = "#d9e5ff";
+      pixelRect(-3, -14, 6, 28);
+      pixelRect(-10, 8, 20, 4);
+    } else if (ball.kind === "ruler") {
+      ctx.fillStyle = "#f8d84a";
+      pixelRect(-14, -10, 28, 20);
+      ctx.fillStyle = "#1c2234";
+      pixelRect(-8, -4, 16, 8);
+    } else {
+      ctx.fillStyle = "#f0d266";
+      pixelRect(-18, -3, 36, 6);
+      ctx.fillStyle = "#ff5278";
+      pixelRect(12, -3, 6, 6);
+    }
+    ctx.restore();
+    return true;
+  }
+
   function drawParticles() {
     for (const particle of state.particles) {
       ctx.globalAlpha = Math.max(0, particle.life * 2.5);
@@ -1503,7 +2213,7 @@
       ctx.fillStyle = state.mode === "clear" ? "#7ee8ff" : "#ff5278";
       ctx.font = "900 52px sans-serif";
       ctx.textAlign = "center";
-      ctx.fillText(state.mode === "clear" ? "1面クリア" : "ゲームオーバー", WIDTH / 2, HEIGHT / 2 - 12);
+      ctx.fillText(state.mode === "clear" ? "ゲームクリア" : "ゲームオーバー", WIDTH / 2, HEIGHT / 2 - 12);
       ctx.fillStyle = "#f5f7ff";
       ctx.font = "700 20px sans-serif";
       ctx.fillText("Enterでタイトルへ戻る", WIDTH / 2, HEIGHT / 2 + 42);
@@ -1527,6 +2237,25 @@
   function clamp(value, min, max) {
     return Math.max(min, Math.min(max, value));
   }
+
+  /* DEV_DEBUG_ONLY_START */
+  async function setupLocalDebugStart() {
+    if (!debugStartPanel || !debugStageSelect || !debugPhaseSelect || !debugStartButton) return;
+    const response = await fetch("local-debug-config.json", { cache: "no-store" }).catch(() => null);
+    if (!response || !response.ok) return;
+    const config = await response.json().catch(() => null);
+    if (!config || config.enabled !== true) return;
+    debugStartPanel.hidden = false;
+    debugStartButton.addEventListener("click", () => {
+      startGame({
+        stage: debugStageSelect.value,
+        phase: debugPhaseSelect.value,
+      });
+    });
+  }
+
+  setupLocalDebugStart();
+  /* DEV_DEBUG_ONLY_END */
 
   startButton.addEventListener("click", startGame);
   dialogueNext.addEventListener("click", advanceDialogue);
