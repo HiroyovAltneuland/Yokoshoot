@@ -28,6 +28,7 @@
   const touchControlsEnabled =
     navigator.maxTouchPoints > 0 ||
     window.matchMedia("(pointer: coarse)").matches;
+  const portraitOrientation = window.matchMedia("(orientation: portrait)");
   const touchInput = {
     movePointerId: null,
     moveX: 0,
@@ -944,6 +945,10 @@
   }
 
   function update(dt) {
+    if (touchControlsEnabled && portraitOrientation.matches) {
+      fadeOutDroneLoopSound();
+      return;
+    }
     updateLifeIndicatorAnimations(dt);
     if (state.mode === "dialogue") {
       updateDialogue(dt);
@@ -2597,6 +2602,10 @@
     resetTouchInput();
   }
 
+  function handleOrientationChange() {
+    if (touchControlsEnabled) resetAllInput();
+  }
+
   /* DEV_DEBUG_ONLY_START */
   async function setupLocalDebugStart() {
     if (!debugStartPanel || !debugStageSelect || !debugPhaseSelect || !debugStartButton) return;
@@ -2633,6 +2642,7 @@
     returnToTitle();
   });
   window.addEventListener("blur", resetAllInput);
+  portraitOrientation.addEventListener("change", handleOrientationChange);
 
   window.addEventListener("keydown", (event) => {
     if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Space"].includes(event.code)) {
