@@ -18,9 +18,24 @@
   const dialogueLine = document.getElementById("dialogue-line");
   const dialogueNext = document.getElementById("dialogue-next");
   const enemyPortrait = document.getElementById("enemy-portrait");
+  const mobileControls = document.getElementById("mobile-controls");
+  const movePad = document.getElementById("move-pad");
+  const moveThumb = document.getElementById("move-thumb");
+  const attackButton = document.getElementById("attack-button");
   const AudioContextClass = window.AudioContext || window.webkitAudioContext;
   let audioContext = null;
   const droneLoops = new Map();
+  const touchControlsEnabled =
+    navigator.maxTouchPoints > 0 ||
+    window.matchMedia("(pointer: coarse)").matches;
+  const touchInput = {
+    movePointerId: null,
+    moveX: 0,
+    moveY: 0,
+    attackPointerId: null,
+  };
+
+  if (touchControlsEnabled) gameScreen.classList.add("touch-controls-enabled");
 
   const WIDTH = canvas.width;
   const HEIGHT = canvas.height;
@@ -280,6 +295,7 @@
     state.fireCooldown = 0;
     state.score = 0;
     state.keys.clear();
+    resetTouchInput();
     state.spawnTimer = 0.25;
     state.waveSpawnCounts = { wave1: 0, wave2: 0 };
     state.player = makePlayer();
@@ -664,11 +680,10 @@
   }
 
   function getPlayerAimAngle(target = null) {
-    const aimingHorizontally =
-      state.keys.has("ArrowRight") ||
-      state.keys.has("KeyD");
+    const movement = getMovementInput();
+    const aimingHorizontally = movement.x > 0;
     if (aimingHorizontally) return 0;
-    const aimingUp = state.keys.has("ArrowUp") || state.keys.has("KeyW");
+    const aimingUp = movement.y < 0;
     if (!aimingUp && state.player.upAimChain <= 0) return 0;
     return target ? angleToTarget(getKnifeSpawnPoint(), target) : -PLAYER_AIM_ANGLE;
   }
@@ -971,12 +986,9 @@
     }
 
     const speed = PLAYER_SPEED;
-    let dx = 0;
-    let dy = 0;
-    if (state.keys.has("ArrowLeft") || state.keys.has("KeyA")) dx -= 1;
-    if (state.keys.has("ArrowRight") || state.keys.has("KeyD")) dx += 1;
-    if (state.keys.has("ArrowUp") || state.keys.has("KeyW")) dy -= 1;
-    if (state.keys.has("ArrowDown") || state.keys.has("KeyS")) dy += 1;
+    const movement = getMovementInput();
+    const dx = movement.x;
+    const dy = movement.y;
     const len = Math.hypot(dx, dy) || 1;
     state.player.moveX = dx;
     state.player.moveY = dy;
@@ -996,11 +1008,12 @@
   }
 
   function updateCharge(dt) {
-    const charging = state.keys.has("Space");
+    const charging = isChargePressed();
     if (state.player.dashCooldown > 0) {
       state.player.wasCharging = charging;
       state.player.chargeTime = 0;
       state.player.chargeReadySoundPlayed = false;
+      syncAttackButtonState();
       return;
     }
     if (charging) {
@@ -1010,11 +1023,13 @@
         state.player.chargeReadySoundPlayed = true;
       }
       state.player.wasCharging = true;
+      syncAttackButtonState();
       return;
     }
     state.player.wasCharging = false;
     state.player.chargeTime = 0;
     state.player.chargeReadySoundPlayed = false;
+    syncAttackButtonState();
   }
 
   function releaseCharge() {
@@ -1028,6 +1043,7 @@
     state.player.wasCharging = false;
     state.player.chargeTime = 0;
     state.player.chargeReadySoundPlayed = false;
+    syncAttackButtonState();
   }
 
   function startDash() {
@@ -1863,8 +1879,10 @@
     ctx.fillText(stageName, 18, 30);
     drawLifeIndicator(250, 9);
     ctx.fillText(`SCORE ${state.score}`, 500, 30);
-    ctx.font = "700 14px sans-serif";
-    ctx.fillText("移動: 矢印/WASD  小刀: Z  溜め突進: Space長押し", 18, HEIGHT - 18);
+    if (!touchControlsEnabled) {
+      ctx.font = "700 14px sans-serif";
+      ctx.fillText("移動: 矢印/WASD  小刀: Z  溜め突進: Space長押し", 18, HEIGHT - 18);
+    }
     ctx.textAlign = "right";
     ctx.fillText(phaseLabel(), WIDTH - 18, 30);
     ctx.textAlign = "left";
@@ -2454,6 +2472,131 @@
     return Math.max(min, Math.min(max, value));
   }
 
+  function getMovementInput() {
+    let x = touchInput.moveX;
+    let y = touchInput.moveY;
+    if (state.keys.has("ArrowLeft") || state.keys.has("KeyA")) x -= 1;
+    if (state.keys.has("ArrowRight") || state.keys.has("KeyD")) x += 1;
+    if (state.keys.has("ArrowUp") || state.keys.has("KeyW")) y -= 1;
+    if (state.keys.has("ArrowDown") || state.keys.has("KeyS")) y += 1;
+    const length = Math.hypot(x, y);
+    return length > 1 ? { x: x / length, y: y / length } : { x, y };
+  }
+
+  function isChargePressed() {
+    return state.keys.has("Space") || touchInput.attackPointerId !== null;
+  }
+
+  function syncAttackButtonState() {
+    if (!attackButton) return;
+    const progress = clamp(state.player.chargeTime / CHARGE_SECONDS, 0, 1);
+    attackButton.style.setProperty("--charge-progress", `${progress * 100}%`);
+    attackButton.classList.toggle("charging", isChargePressed());
+    attackButton.classList.toggle("ready", progress >= 1 && state.player.dashCooldown <= 0);
+  }
+
+  function updateMovePad(event) {
+    const bounds = movePad.getBoundingClientRect();
+    const maxDistance = bounds.width * 0.32;
+    let x = event.clientX - (bounds.left + bounds.width / 2);
+    let y = event.clientY - (bounds.top + bounds.height / 2);
+    const distanceFromCenter = Math.hypot(x, y);
+    if (distanceFromCenter > maxDistance) {
+      x = (x / distanceFromCenter) * maxDistance;
+      y = (y / distanceFromCenter) * maxDistance;
+    }
+    touchInput.moveX = x / maxDistance;
+    touchInput.moveY = y / maxDistance;
+    moveThumb.style.transform = `translate(calc(-50% + ${x}px), calc(-50% + ${y}px))`;
+  }
+
+  function resetMovePad() {
+    touchInput.movePointerId = null;
+    touchInput.moveX = 0;
+    touchInput.moveY = 0;
+    if (moveThumb) moveThumb.style.transform = "translate(-50%, -50%)";
+  }
+
+  function resetTouchInput() {
+    resetMovePad();
+    touchInput.attackPointerId = null;
+    state.player.wasCharging = false;
+    state.player.chargeTime = 0;
+    state.player.chargeReadySoundPlayed = false;
+    syncAttackButtonState();
+  }
+
+  function setupTouchControls() {
+    if (!touchControlsEnabled || !mobileControls || !movePad || !moveThumb || !attackButton) return;
+
+    movePad.addEventListener("pointerdown", (event) => {
+      if (touchInput.movePointerId !== null) return;
+      event.preventDefault();
+      touchInput.movePointerId = event.pointerId;
+      movePad.setPointerCapture(event.pointerId);
+      updateMovePad(event);
+    });
+    movePad.addEventListener("pointermove", (event) => {
+      if (event.pointerId !== touchInput.movePointerId) return;
+      event.preventDefault();
+      updateMovePad(event);
+    });
+    for (const eventName of ["pointerup", "pointercancel", "lostpointercapture"]) {
+      movePad.addEventListener(eventName, (event) => {
+        if (event.pointerId !== touchInput.movePointerId) return;
+        resetMovePad();
+      });
+    }
+
+    attackButton.addEventListener("pointerdown", (event) => {
+      if (touchInput.attackPointerId !== null) return;
+      event.preventDefault();
+      touchInput.attackPointerId = event.pointerId;
+      state.player.wasCharging = true;
+      attackButton.setPointerCapture(event.pointerId);
+      syncAttackButtonState();
+    });
+    attackButton.addEventListener("pointerup", (event) => {
+      if (event.pointerId !== touchInput.attackPointerId) return;
+      event.preventDefault();
+      touchInput.attackPointerId = null;
+      releaseCharge();
+    });
+    for (const eventName of ["pointercancel", "lostpointercapture"]) {
+      attackButton.addEventListener(eventName, (event) => {
+        if (event.pointerId !== touchInput.attackPointerId) return;
+        touchInput.attackPointerId = null;
+        state.player.wasCharging = false;
+        state.player.chargeTime = 0;
+        state.player.chargeReadySoundPlayed = false;
+        syncAttackButtonState();
+      });
+    }
+  }
+
+  function tryEnterMobileFullscreen() {
+    if (!touchControlsEnabled || !document.documentElement.requestFullscreen) return;
+    document.documentElement.requestFullscreen()
+      .then(() => {
+        if (screen.orientation && screen.orientation.lock) {
+          screen.orientation.lock("landscape").catch(() => {});
+        }
+      })
+      .catch(() => {});
+  }
+
+  function returnToTitle() {
+    state.mode = "title";
+    gameScreen.hidden = true;
+    titleScreen.hidden = false;
+    resetTouchInput();
+  }
+
+  function resetAllInput() {
+    state.keys.clear();
+    resetTouchInput();
+  }
+
   /* DEV_DEBUG_ONLY_START */
   async function setupLocalDebugStart() {
     if (!debugStartPanel || !debugStageSelect || !debugPhaseSelect || !debugStartButton) return;
@@ -2473,24 +2616,37 @@
   setupLocalDebugStart();
   /* DEV_DEBUG_ONLY_END */
 
-  startButton.addEventListener("click", startGame);
+  setupTouchControls();
+  startButton.addEventListener("click", () => {
+    tryEnterMobileFullscreen();
+    startGame();
+  });
   dialogueNext.addEventListener("click", advanceDialogue);
+  dialogueBox.addEventListener("pointerdown", (event) => {
+    if (!touchControlsEnabled || state.mode !== "dialogue") return;
+    event.preventDefault();
+    advanceDialogue();
+  });
+  gameScreen.addEventListener("pointerdown", (event) => {
+    if (!touchControlsEnabled || (state.mode !== "clear" && state.mode !== "gameOver")) return;
+    if (event.target !== canvas && event.target !== gameScreen) return;
+    returnToTitle();
+  });
+  window.addEventListener("blur", resetAllInput);
 
   window.addEventListener("keydown", (event) => {
     if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Space"].includes(event.code)) {
       event.preventDefault();
     }
     if ((state.mode === "clear" || state.mode === "gameOver") && event.code === "Enter") {
-      state.mode = "title";
-      gameScreen.hidden = true;
-      titleScreen.hidden = false;
+      returnToTitle();
       return;
     }
     state.keys.add(event.code);
   });
 
   window.addEventListener("keyup", (event) => {
-    if (event.code === "Space") releaseCharge();
     state.keys.delete(event.code);
+    if (event.code === "Space") releaseCharge();
   });
 })();

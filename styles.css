@@ -12,9 +12,11 @@
 body {
   min-width: 320px;
   min-height: 100vh;
+  min-height: 100dvh;
   margin: 0;
   overflow: hidden;
   background: #050712;
+  overscroll-behavior: none;
 }
 
 [hidden] {
@@ -187,6 +189,7 @@ h1 img {
   place-items: center;
   width: 100vw;
   height: 100vh;
+  height: 100dvh;
   overflow: hidden;
   background: #000;
 }
@@ -195,11 +198,101 @@ h1 img {
   grid-area: 1 / 1;
   display: block;
   width: min(100vw, 177.7778vh);
+  width: min(100vw, 177.7778dvh);
   height: min(100vh, 56.25vw);
+  height: min(100dvh, 56.25vw);
   aspect-ratio: 16 / 9;
   background: #111827;
   image-rendering: pixelated;
   image-rendering: crisp-edges;
+}
+
+.orientation-notice,
+.mobile-controls {
+  display: none;
+}
+
+.mobile-controls {
+  grid-area: 1 / 1;
+  z-index: 4;
+  width: min(100vw, 177.7778vh);
+  width: min(100vw, 177.7778dvh);
+  height: min(100vh, 56.25vw);
+  height: min(100dvh, 56.25vw);
+  aspect-ratio: 16 / 9;
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.move-pad,
+.attack-button {
+  position: absolute;
+  pointer-events: auto;
+  touch-action: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.move-pad {
+  left: max(22px, env(safe-area-inset-left));
+  bottom: max(22px, env(safe-area-inset-bottom));
+  width: 132px;
+  height: 132px;
+  border: 2px solid rgba(126, 232, 255, 0.72);
+  border-radius: 50%;
+  background: rgba(5, 7, 18, 0.52);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.34);
+}
+
+.move-thumb {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 58px;
+  height: 58px;
+  border-radius: 50%;
+  background: rgba(126, 232, 255, 0.78);
+  box-shadow: 0 0 24px rgba(126, 232, 255, 0.3);
+  transform: translate(-50%, -50%);
+}
+
+.attack-button {
+  right: max(28px, env(safe-area-inset-right));
+  bottom: max(28px, env(safe-area-inset-bottom));
+  display: grid;
+  width: 128px;
+  height: 128px;
+  place-content: center;
+  gap: 5px;
+  border: 3px solid rgba(248, 216, 74, 0.92);
+  border-radius: 50%;
+  background: rgba(130, 96, 12, 0.82);
+  color: #fff4b5;
+  font: inherit;
+  text-align: center;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.38);
+}
+
+.attack-button.charging {
+  background:
+    conic-gradient(#7ee8ff var(--charge-progress, 0%), rgba(130, 96, 12, 0.82) 0);
+}
+
+.attack-button.ready {
+  border-color: #7ee8ff;
+  background: rgba(22, 128, 164, 0.92);
+  box-shadow: 0 0 30px rgba(126, 232, 255, 0.68);
+}
+
+.attack-label {
+  font-size: 24px;
+  font-weight: 900;
+}
+
+.attack-hint {
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1.35;
 }
 
 .dialogue-box {
@@ -210,7 +303,9 @@ h1 img {
   z-index: 5;
   display: grid;
   width: min(100vw, 177.7778vh);
+  width: min(100vw, 177.7778dvh);
   height: min(100vh, 56.25vw);
+  height: min(100dvh, 56.25vw);
   aspect-ratio: 16 / 9;
   grid-template-columns: minmax(150px, 30vw) minmax(260px, 1fr) minmax(150px, 30vw);
   gap: 12px;
@@ -349,5 +444,64 @@ h1 img {
 
   .dialogue-line {
     font-size: 17px;
+  }
+}
+
+@media (orientation: landscape) {
+  .game-screen.touch-controls-enabled .mobile-controls {
+    display: block;
+  }
+}
+
+@media (orientation: landscape) and (max-height: 560px) {
+  .dialogue-box {
+    --dialogue-padding: 14px;
+
+    grid-template-columns: minmax(112px, 26vw) minmax(250px, 1fr) minmax(112px, 26vw);
+    gap: 6px;
+  }
+
+  .dialogue-text {
+    min-height: 126px;
+    padding: 14px 18px;
+  }
+
+  .speaker-name {
+    margin-bottom: 7px;
+    font-size: 16px;
+  }
+
+  .dialogue-line {
+    min-height: 42px;
+    margin-bottom: 10px;
+    font-size: 16px;
+    line-height: 1.45;
+  }
+
+  .dialogue-next {
+    min-height: 34px;
+  }
+}
+
+@media (orientation: portrait) {
+  .game-screen.touch-controls-enabled > :not(.orientation-notice) {
+    display: none !important;
+  }
+
+  .game-screen.touch-controls-enabled .orientation-notice {
+    display: grid;
+    width: 100%;
+    height: 100%;
+    place-items: center;
+    padding: 24px;
+    color: #f5f7ff;
+    text-align: center;
+    background: #050712;
+  }
+
+  .orientation-notice p {
+    margin: 0;
+    font-size: 20px;
+    font-weight: 800;
   }
 }

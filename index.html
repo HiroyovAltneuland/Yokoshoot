@@ -2,7 +2,7 @@
 <html lang="ja">
   <head>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
     <title>学園ブレード</title>
     <link rel="stylesheet" href="styles.css">
   </head>
@@ -46,6 +46,18 @@
     </main>
     <main id="game-screen" class="game-screen" hidden>
       <canvas id="game-canvas" width="960" height="540" aria-label="学園ブレード 1面"></canvas>
+      <div class="orientation-notice" aria-live="polite">
+        <p>端末を横向きにしてください</p>
+      </div>
+      <div id="mobile-controls" class="mobile-controls" aria-label="タッチ操作">
+        <div id="move-pad" class="move-pad" aria-label="移動スティック">
+          <div id="move-thumb" class="move-thumb"></div>
+        </div>
+        <button id="attack-button" type="button" class="attack-button" aria-label="攻撃。短押しで小刀、長押しして離すと突進">
+          <span class="attack-label">攻撃</span>
+          <span class="attack-hint">短押し: 小刀<br>長押し: 突進</span>
+        </button>
+      </div>
       <div id="dialogue-box" class="dialogue-box" hidden>
         <div class="portrait protagonist">
           <img src="assets/dialogue-rin.png" alt="黒羽 凛">
