@@ -35,6 +35,10 @@
   const PLAYER_KNIFE_SPEED = CONFIG.player.knifeSpeed;
   const PLAYER_AIM_ANGLE = (CONFIG.player.aimAngleDegrees * Math.PI) / 180;
   const PLAYER_UP_AIM_CHAIN_SECONDS = CONFIG.player.upAimChainSeconds;
+  const PLAYER_UP_AIM_ACQUIRE_ANGLE = (CONFIG.player.upAimAcquireAngleDegrees * Math.PI) / 180;
+  const PLAYER_UP_AIM_HOMING_SECONDS = CONFIG.player.upAimHomingSeconds;
+  const PLAYER_UP_AIM_TURN_SPEED = (CONFIG.player.upAimTurnDegreesPerSecond * Math.PI) / 180;
+  const PLAYER_UP_AIM_MAX_TARGET_DISTANCE = CONFIG.player.upAimMaxTargetDistance;
   const PLAYER_THROW_SECONDS = 0.16;
   const PLAYER_RADIUS = 15;
   const PLAYER_HURT_RADIUS = 8;
@@ -62,10 +66,17 @@
   const BOSS_SPRITE_COLUMNS = 3;
   const BOSS_SPRITE_ROWS = 2;
   const BOSS_SPRITE_DRAW_SIZE = 172;
+  const RITSUKO_BOSS_SPRITE_DRAW_WIDTH = Math.round(BOSS_SPRITE_DRAW_SIZE * (576 / 512));
   const BOSS_SPRITE_FOOT_OFFSET_Y = Math.round(BOSS_SPRITE_DRAW_SIZE * 0.44);
   const ENEMY_SPRITE_COLUMNS = 3;
   const ENEMY_SPRITE_ROWS = 5;
   const ENEMY_SPRITE_SOURCE_INSET = 4;
+  const STAGE_TWO_ENEMY_SPRITE_ROWS = 3;
+  const STAGE_TWO_ENEMY_SPRITE_CONFIG = {
+    cleaningRobot: { row: 0, width: 118, height: 118, offsetY: 10 },
+    barrageRobot: { row: 1, width: 92, height: 92, offsetY: 6 },
+    disciplineRobot: { row: 2, width: 100, height: 100, offsetY: 4 },
+  };
   const ENEMY_SPRITE_CONFIG = {
     twintail: { row: 0, width: 185, height: 139, radius: 25, offsetX: 0, offsetY: 0 },
     visorGlasses: { row: 1, width: 185, height: 139, radius: 25, offsetX: 0, offsetY: 0 },
@@ -151,10 +162,18 @@
   playerSprite.src = "assets/rin-sprite-sheet.png";
   const tsubameBossSprite = new Image();
   tsubameBossSprite.src = "assets/tsubame-boss-sprite-sheet.png";
+  const ritsukoBossSprite = new Image();
+  ritsukoBossSprite.src = "assets/ritsuko-boss-sprite-sheet.png";
+  const sayoBossSprite = new Image();
+  sayoBossSprite.src = "assets/sayo-boss-sprite-sheet.png";
   const stageOneEnemySprite = new Image();
   stageOneEnemySprite.src = "assets/stage1-enemy-sprite-sheet.png";
+  const stageTwoEnemySprite = new Image();
+  stageTwoEnemySprite.src = "assets/stage2-enemy-sprite-sheet.png";
   const stageOneBackground = new Image();
   stageOneBackground.src = "assets/stage1-background-concept.png";
+  const stageTwoBackground = new Image();
+  stageTwoBackground.src = "assets/stage2-background-concept.png";
   const lifeScarfIcon = new Image();
   lifeScarfIcon.src = "assets/hud-life-scarf.png";
   const BACKGROUND_STOPS = {
@@ -205,6 +224,8 @@
     dialogueTimer: 0,
     dialogueAutoSeconds: DIALOGUE_AUTO_SECONDS,
     lifeRecovery: null,
+    foregroundScrollPosition: null,
+    foregroundScrolling: false,
     message: "",
   };
 
@@ -300,7 +321,9 @@
     enemyPortrait.src = state.stage === 2
       ? kind === "midBoss"
         ? "assets/dialogue-ritsuko-midboss.png"
-        : "assets/dialogue-sayo-boss.png"
+        : kind === "bossDefeated"
+          ? "assets/dialogue-sayo-defeated.png"
+          : "assets/dialogue-sayo-boss.png"
       : kind === "bossDefeated"
         ? "assets/dialogue-tsubame-defeated.png"
         : bossPortrait ? "assets/dialogue-tsubame-boss.png" : "assets/dialogue-tsubame-midboss.png";
@@ -369,6 +392,8 @@
     state.enemies = [];
     state.enemyBullets = [];
     state.spawnTimer = 0.25;
+    state.foregroundScrollPosition = null;
+    state.foregroundScrolling = false;
     if (phase === "wave1" || phase === "wave2") state.waveSpawnCounts[phase] = 0;
     if (state.stage === 2) {
       setStageTwoPhase(phase);
@@ -623,7 +648,8 @@
 
   function shootKnife() {
     playShotSound("knife");
-    const angle = getPlayerAimAngle(true);
+    const target = findUpAimTarget();
+    const angle = getPlayerAimAngle(target);
     if (angle < 0) state.player.upAimChain = PLAYER_UP_AIM_CHAIN_SECONDS;
     if (canShowThrowMotion()) state.player.throwTime = PLAYER_THROW_SECONDS;
     state.knives.push({
@@ -631,18 +657,20 @@
       y: state.player.y - 22,
       vx: Math.cos(angle) * PLAYER_KNIFE_SPEED,
       vy: Math.sin(angle) * PLAYER_KNIFE_SPEED,
+      homingTarget: angle < 0 ? target : null,
+      homingTime: angle < 0 && target ? PLAYER_UP_AIM_HOMING_SECONDS : 0,
       r: 6,
     });
   }
 
-  function getPlayerAimAngle(adjustForEnemy = false) {
+  function getPlayerAimAngle(target = null) {
     const aimingHorizontally =
       state.keys.has("ArrowRight") ||
       state.keys.has("KeyD");
     if (aimingHorizontally) return 0;
     const aimingUp = state.keys.has("ArrowUp") || state.keys.has("KeyW");
     if (!aimingUp && state.player.upAimChain <= 0) return 0;
-    return adjustForEnemy ? getAdjustedUpAimAngle() : -PLAYER_AIM_ANGLE;
+    return target ? angleToTarget(getKnifeSpawnPoint(), target) : -PLAYER_AIM_ANGLE;
   }
 
   function setStageTwoPhase(phase) {
@@ -660,11 +688,15 @@
     }
   }
 
-  function getAdjustedUpAimAngle() {
-    const origin = {
+  function getKnifeSpawnPoint() {
+    return {
       x: state.player.x + 34,
       y: state.player.y - 22,
     };
+  }
+
+  function findUpAimTarget() {
+    const origin = getKnifeSpawnPoint();
     let closestTarget = null;
     let closestDistance = Infinity;
     const targets = state.boss ? [...state.enemies, state.boss] : state.enemies;
@@ -673,14 +705,19 @@
       const dx = target.x - origin.x;
       const dy = target.y - origin.y;
       const angle = Math.atan2(dy, dx);
-      if (angle <= -PLAYER_AIM_ANGLE || angle >= 0) continue;
+      if (angle <= -PLAYER_UP_AIM_ACQUIRE_ANGLE || angle >= 0) continue;
       const targetDistance = Math.hypot(dx, dy);
+      if (targetDistance > PLAYER_UP_AIM_MAX_TARGET_DISTANCE) continue;
       if (targetDistance < closestDistance) {
-        closestTarget = angle;
+        closestTarget = target;
         closestDistance = targetDistance;
       }
     }
-    return closestTarget ?? -PLAYER_AIM_ANGLE;
+    return closestTarget;
+  }
+
+  function angleToTarget(origin, target) {
+    return Math.atan2(target.y - origin.y, target.x - origin.x);
   }
 
   function canShowThrowMotion() {
@@ -739,6 +776,7 @@
       usedSpecial: false,
       chargeState: "rush",
       windupTime: 0,
+      reinforcementPass: "toLeft",
     });
     state.nextEnemyId += 1;
   }
@@ -773,7 +811,7 @@
   function selectRegularEnemyType(wave, spawnIndex) {
     if (state.stage === 2) {
       if (wave === "wave2") return "disciplineRobot";
-      if (spawnIndex === 10 || spawnIndex === 14) return "barrageRobot";
+      if (spawnIndex === 6 || spawnIndex === 10 || spawnIndex === 14) return "barrageRobot";
       return "cleaningRobot";
     }
     if (wave === "wave2") return "droneB";
@@ -915,6 +953,7 @@
     state.player.upAimChain = Math.max(0, state.player.upAimChain - dt);
     state.player.dashCooldown = Math.max(0, state.player.dashCooldown - dt);
 
+    updateForegroundScrollState();
     updatePlayer(dt);
     updatePhase(dt);
     updateKnives(dt);
@@ -1078,6 +1117,7 @@
 
   function updateKnives(dt) {
     for (const knife of state.knives) {
+      updateHomingKnife(knife, dt);
       knife.x += knife.vx * dt;
       knife.y += knife.vy * dt;
     }
@@ -1097,6 +1137,7 @@
         continue;
       }
       enemy.x += enemy.vx * dt;
+      updateReinforcementEnemyMovement(enemy);
       updateStageTwoEnemyMovement(enemy, dt);
       enemy.y = clampEnemyY(enemy.type, enemy.y);
       enemy.fireTimer -= dt;
@@ -1109,6 +1150,35 @@
       }
     }
     state.enemies = state.enemies.filter((enemy) => enemy.x > -40 && enemy.x < WIDTH + 50);
+  }
+
+  function updateReinforcementEnemyMovement(enemy) {
+    if (enemy.wave !== "midBossReinforcement") return;
+    const moveSpeed = getEnemyGameplay(enemy.type).moveSpeed;
+    if (enemy.reinforcementPass === "toLeft" && enemy.x <= 0) {
+      enemy.x = 0;
+      enemy.vx = moveSpeed;
+      enemy.reinforcementPass = "toRight";
+    } else if (enemy.reinforcementPass === "toRight" && enemy.x >= WIDTH) {
+      enemy.x = WIDTH;
+      enemy.vx = -moveSpeed;
+      enemy.reinforcementPass = "exitLeft";
+    }
+  }
+
+  function updateHomingKnife(knife, dt) {
+    if (!knife.homingTarget || knife.homingTime <= 0 || knife.homingTarget.dead) return;
+    knife.homingTime = Math.max(0, knife.homingTime - dt);
+    const currentAngle = Math.atan2(knife.vy, knife.vx);
+    const targetAngle = angleToTarget(knife, knife.homingTarget);
+    const turn = clamp(normalizeAngle(targetAngle - currentAngle), -PLAYER_UP_AIM_TURN_SPEED * dt, PLAYER_UP_AIM_TURN_SPEED * dt);
+    const nextAngle = currentAngle + turn;
+    knife.vx = Math.cos(nextAngle) * PLAYER_KNIFE_SPEED;
+    knife.vy = Math.sin(nextAngle) * PLAYER_KNIFE_SPEED;
+  }
+
+  function normalizeAngle(angle) {
+    return Math.atan2(Math.sin(angle), Math.cos(angle));
   }
 
   function getEnemyGameplay(type) {
@@ -1573,6 +1643,47 @@
   }
 
   function drawStageTwoBackground() {
+    if (!stageTwoBackground.complete || stageTwoBackground.naturalWidth === 0) {
+      drawStageTwoFallbackBackground();
+      return;
+    }
+    const sourceHeight = stageTwoBackground.naturalHeight;
+    const sourceWidth = Math.min(stageTwoBackground.naturalWidth, sourceHeight * (WIDTH / HEIGHT));
+    const stop = getStageTwoProgress();
+    for (const layer of BACKGROUND_PARALLAX_LAYERS) {
+      drawStageTwoBackgroundLayer(sourceWidth, stop, layer);
+    }
+  }
+
+  function drawStageTwoBackgroundLayer(sourceWidth, stop, layer) {
+    const sourceHeight = stageTwoBackground.naturalHeight;
+    const sourceTop = Math.round(sourceHeight * layer.top);
+    const sourceBottom = Math.round(sourceHeight * layer.bottom);
+    const sourceLayerHeight = Math.max(1, sourceBottom - sourceTop);
+    const destTop = Math.round(HEIGHT * layer.top);
+    const destBottom = Math.round(HEIGHT * layer.bottom);
+    const destLayerHeight = Math.max(1, destBottom - destTop);
+    const sourceX = getStageTwoBackgroundSourceX(sourceWidth, stop, layer.strength);
+    ctx.drawImage(
+      stageTwoBackground,
+      sourceX,
+      sourceTop,
+      sourceWidth,
+      sourceLayerHeight,
+      0,
+      destTop,
+      WIDTH,
+      destLayerHeight
+    );
+  }
+
+  function getStageTwoBackgroundSourceX(sourceWidth, stop, parallaxStrength) {
+    const maxSourceX = Math.max(0, stageTwoBackground.naturalWidth - sourceWidth);
+    const parallaxStop = clamp(stop + (stop - 0.5) * parallaxStrength, 0, 1);
+    return Math.round(maxSourceX * parallaxStop);
+  }
+
+  function drawStageTwoFallbackBackground() {
     const stop = getStageTwoProgress();
     const gradient = ctx.createLinearGradient(0, 0, 0, HEIGHT);
     gradient.addColorStop(0, lerpColor([245, 132, 88], [20, 24, 54], stop));
@@ -1625,9 +1736,9 @@
 
   function getStageTwoProgress() {
     if (state.phase === "wave1") return clamp(state.phaseTime / STAGE_TWO_PLAN.wave1, 0, 1) * 0.34;
-    if (state.phase === "midBoss") return 0.38;
+    if (state.phase === "midBossDialogue" || state.phase === "midBoss") return 0.38;
     if (state.phase === "wave2") return 0.48 + clamp(state.phaseTime / STAGE_TWO_PLAN.wave2, 0, 1) * 0.34;
-    if (state.phase === "boss") return 1;
+    if (state.phase === "bossDialogue" || state.phase === "boss" || state.phase === "bossDefeatedDialogue") return 1;
     return 0;
   }
 
@@ -1893,7 +2004,33 @@
   }
 
   function isBackgroundScrolling() {
-    return state.mode === "playing" && (state.phase === "wave1" || state.phase === "wave2");
+    return state.foregroundScrolling;
+  }
+
+  function updateForegroundScrollState() {
+    const position = getForegroundScrollPosition();
+    state.foregroundScrolling =
+      state.foregroundScrollPosition !== null && Math.abs(position - state.foregroundScrollPosition) > 0.0001;
+    state.foregroundScrollPosition = position;
+  }
+
+  function getForegroundScrollPosition() {
+    if (state.stage === 2) {
+      const stop = getStageTwoProgress();
+      if (!stageTwoBackground.complete || stageTwoBackground.naturalWidth === 0) return stop;
+      const sourceHeight = stageTwoBackground.naturalHeight;
+      const sourceWidth = Math.min(stageTwoBackground.naturalWidth, sourceHeight * (WIDTH / HEIGHT));
+      const foregroundStrength = BACKGROUND_PARALLAX_LAYERS[BACKGROUND_PARALLAX_LAYERS.length - 1].strength;
+      return getStageTwoBackgroundSourceX(sourceWidth, stop, foregroundStrength);
+    }
+    const stop = getStageOneBackgroundStop();
+    if (!stageOneBackground.complete || stageOneBackground.naturalWidth === 0) return stop;
+    const sourceHeight = stageOneBackground.naturalHeight;
+    const sourceWidth = Math.min(stageOneBackground.naturalWidth, sourceHeight * (WIDTH / HEIGHT));
+    const maxSourceX = Math.max(0, stageOneBackground.naturalWidth - sourceWidth);
+    const foregroundStrength = BACKGROUND_PARALLAX_LAYERS[BACKGROUND_PARALLAX_LAYERS.length - 1].strength;
+    const parallaxStop = clamp(stop + (stop - 0.5) * foregroundStrength, 0, 1);
+    return maxSourceX * parallaxStop;
   }
 
   function getPlayerSpriteFrame(spriteState) {
@@ -1963,6 +2100,7 @@
 
   function drawStageTwoEnemy(enemy) {
     if (state.stage !== 2) return false;
+    if (drawStageTwoEnemySprite(enemy)) return true;
     if (enemy.type === "cleaningRobot") {
       const spin = enemy.chargeState === "windup" && Math.floor(state.elapsed * 24) % 2;
       ctx.fillStyle = "#cad5e6";
@@ -2004,6 +2142,7 @@
       pixelRect(-16, 18, 10, 12);
       pixelRect(6, 18, 10, 12);
     } else {
+      if (enemy.wave === "midBossReinforcement" && enemy.vx > 0) ctx.scale(-1, 1);
       ctx.fillStyle = enemy.type === "glassesEnforcer" ? "#c9d8f4" : "#e4a8c1";
       pixelRect(-16, -42, 32, 28);
       pixelRect(-24, -14, 48, 54);
@@ -2012,6 +2151,27 @@
       pixelRect(4, 40, 12, 18);
       if (enemy.type === "glassesEnforcer") pixelRect(-14, -29, 28, 5);
     }
+    return true;
+  }
+
+  function drawStageTwoEnemySprite(enemy) {
+    const config = STAGE_TWO_ENEMY_SPRITE_CONFIG[enemy.type];
+    if (!config || !stageTwoEnemySprite.complete || stageTwoEnemySprite.naturalWidth === 0) return false;
+
+    const frame = Math.floor(state.elapsed * 8) % ENEMY_SPRITE_COLUMNS;
+    const sourceWidth = stageTwoEnemySprite.naturalWidth / ENEMY_SPRITE_COLUMNS;
+    const sourceHeight = stageTwoEnemySprite.naturalHeight / STAGE_TWO_ENEMY_SPRITE_ROWS;
+    ctx.drawImage(
+      stageTwoEnemySprite,
+      frame * sourceWidth + ENEMY_SPRITE_SOURCE_INSET,
+      config.row * sourceHeight + ENEMY_SPRITE_SOURCE_INSET,
+      sourceWidth - ENEMY_SPRITE_SOURCE_INSET * 2,
+      sourceHeight - ENEMY_SPRITE_SOURCE_INSET * 2,
+      -config.width * 0.5,
+      -config.height * 0.62 + config.offsetY,
+      config.width,
+      config.height
+    );
     return true;
   }
 
@@ -2078,15 +2238,9 @@
   function drawStageTwoBoss(boss) {
     if (state.stage !== 2) return false;
     if (boss.rank === 2) {
-      ctx.fillStyle = "#d7d9f4";
-      pixelRect(-20, -48, 40, 34);
-      pixelRect(-30, -14, 60, 72);
-      ctx.fillStyle = "#402c55";
-      pixelRect(-34, -54, 18, 82);
-      pixelRect(16, -54, 18, 82);
-      ctx.fillStyle = "#ff5278";
-      pixelRect(-24, 8, 48, 10);
+      if (drawRitsukoBossSprite(boss)) return true;
     } else {
+      if (drawSayoBossSprite(boss)) return true;
       ctx.fillStyle = "#eef3ff";
       pixelRect(-22, -50, 44, 36);
       pixelRect(-30, -14, 60, 72);
@@ -2103,6 +2257,48 @@
     ctx.fillStyle = "#1c2234";
     pixelRect(-22, 58, 14, 20);
     pixelRect(8, 58, 14, 20);
+    return true;
+  }
+
+  function drawSayoBossSprite(boss) {
+    if (!sayoBossSprite.complete || sayoBossSprite.naturalWidth === 0) return false;
+
+    const frame = Math.floor(state.elapsed * 7) % BOSS_SPRITE_COLUMNS;
+    const row = boss.changed ? 1 : 0;
+    const sourceWidth = sayoBossSprite.naturalWidth / BOSS_SPRITE_COLUMNS;
+    const sourceHeight = sayoBossSprite.naturalHeight / BOSS_SPRITE_ROWS;
+    ctx.drawImage(
+      sayoBossSprite,
+      frame * sourceWidth,
+      row * sourceHeight,
+      sourceWidth,
+      sourceHeight,
+      -BOSS_SPRITE_DRAW_SIZE * 0.5,
+      -BOSS_SPRITE_DRAW_SIZE * 0.56,
+      BOSS_SPRITE_DRAW_SIZE,
+      BOSS_SPRITE_DRAW_SIZE
+    );
+    return true;
+  }
+
+  function drawRitsukoBossSprite(boss) {
+    if (!ritsukoBossSprite.complete || ritsukoBossSprite.naturalWidth === 0) return false;
+
+    const frame = Math.floor(state.elapsed * 7) % BOSS_SPRITE_COLUMNS;
+    const row = boss.changed ? 1 : 0;
+    const sourceWidth = ritsukoBossSprite.naturalWidth / BOSS_SPRITE_COLUMNS;
+    const sourceHeight = ritsukoBossSprite.naturalHeight / BOSS_SPRITE_ROWS;
+    ctx.drawImage(
+      ritsukoBossSprite,
+      frame * sourceWidth,
+      row * sourceHeight,
+      sourceWidth,
+      sourceHeight,
+      -RITSUKO_BOSS_SPRITE_DRAW_WIDTH * 0.5,
+      -BOSS_SPRITE_DRAW_SIZE * 0.56,
+      RITSUKO_BOSS_SPRITE_DRAW_WIDTH,
+      BOSS_SPRITE_DRAW_SIZE
+    );
     return true;
   }
 

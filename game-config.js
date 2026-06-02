@@ -18,6 +18,10 @@ window.YOKOSHOOT_CONFIG = {
     knifeSpeed: 640,
     aimAngleDegrees: 25.714,
     upAimChainSeconds: 0.3,
+    upAimAcquireAngleDegrees: 50,
+    upAimHomingSeconds: 0.45,
+    upAimTurnDegreesPerSecond: 140,
+    upAimMaxTargetDistance: 560,
     flinchSeconds: 0.5,
     dash: {
       chargeSeconds: 1,

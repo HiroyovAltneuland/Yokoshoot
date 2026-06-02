@@ -95,7 +95,7 @@ The player character is:
 - After firing an upward shot, automatically preserve upward shots for the next 0.3 seconds.
 - Right input overrides the upward-shot chain and fires straight right. Left input preserves the chain.
 - Down input should not produce a downward shot. Fire straight right while Down is held unless the upward-shot chain is active.
-- If an enemy is above Rin and inside the default upward-shot angle, adjust the upward shot to the angle between Rin and the nearest eligible enemy.
+- If an enemy is above Rin and inside the upward-shot acquisition angle, adjust the upward shot to the angle between Rin and the nearest eligible enemy. Upward knives should weakly home toward that locked target for a short time after launch without reacquiring another target.
 - Rin's normal shot should spawn near her chest-height right hand so it appears to launch from the knife-ready pose.
 - The shot visual should read as a small blade or throwing knife.
 - The player shot sound effect should feel like a small blade cutting through air.
@@ -192,7 +192,7 @@ The player character is:
 - Play a wheel-spin sound effect during the wind-up.
 - After the wind-up, it should run in a zigzag path along the hallway floor.
 - Extend the first regular-enemy section to about 23 seconds.
-- During the latter half of the section, add exactly two barrage robots.
+- Add one barrage robot earlier in the section, then two more during the latter half.
 - Each barrage robot should fire one player-aimed bullet plus a 16-way radial burst, then retreat immediately.
 - Keep reusable barrage definitions in `bullet-patterns.json`. The runtime currently supports `aimed`, `aimedSpread`, and `radial` fire actions plus `retreat` and `finish` actions.
 
@@ -206,6 +206,7 @@ The player character is:
 - When her HP reaches 9, she should enter her powered mode and throw school supplies more rapidly.
 - Spawn exactly one glasses-wearing girl from the title art and one delinquent-looking character from the title art.
 - Each reinforcement has 3 HP and rushes toward the player.
+- Each reinforcement should run to the left edge, reverse toward the right edge, reverse again, and finally leave through the left edge.
 - After summoning the reinforcements, Ritsuko should resume and layer her shooting attacks over their rushes.
 
 ### Stage 2 Regular Enemies 2
@@ -249,7 +250,7 @@ The player character is:
 - Avoid smooth gradients or round vector-like character shapes in in-game rendering unless there is a strong reason.
 - Rin's in-game sprite uses a late-1990s Japanese horror adventure mood: subdued, semi-realistic pixel art with seven 3-frame rows for forward movement, backward movement, charged dash, neutral idle, damage flinch, knife throw, and gentle in-place walking while the background scrolls.
 - Rin's forward movement row should read as walking forward, with left and right feet alternating across the 3 animation frames.
-- Rin's scrolling in-place walking row should use a visibly smaller stride than the forward row, with stable head and torso anchors and left/right feet alternating gently from a near-idle stance.
+- Rin's scrolling in-place walking row should use a visibly smaller stride than the forward row, with stable head and torso anchors and left/right feet alternating gently from a near-idle stance. Start this animation only while the foreground parallax layer is actually moving.
 - Rin's neutral 3-frame animation should keep her head horizontally stable while her hair, scarf, and skirt flutter like she is taking a large quiet breath.
 - Rin's neutral stance should keep her feet closed.
 - Rin's knife throw row should read as a quick 2-frame throw based on the forward/neutral stance; apply it only while moving forward, moving vertically, or standing idle, not while moving backward.

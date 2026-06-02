@@ -1,8 +1,25 @@
 {
+  "_formatNotes": {
+    "_comment": "Reusable enemy bullet patterns. Keys starting with an underscore are documentation only and are ignored by the runtime.",
+    "sound": "Optional sound effect name played once when the pattern starts.",
+    "actions": "Actions run once in array order.",
+    "fire": "Bullet shape. Supported values: aimed, aimedSpread, radial.",
+    "speed": "Bullet travel speed in canvas pixels per second.",
+    "kind": "Visual bullet type used by the renderer.",
+    "radius": "Collision radius in canvas pixels.",
+    "originX": "Horizontal spawn offset from the attacker in canvas pixels. Negative values move the spawn point left.",
+    "originY": "Optional vertical spawn offset from the attacker in canvas pixels. Positive values move the spawn point down.",
+    "angleOffsets": "Offsets from the player-aimed direction in radians. Negative values turn upward and positive values turn downward.",
+    "count": "Number of bullets distributed evenly around a full circle.",
+    "retreat.speed": "Horizontal retreat speed in canvas pixels per second. Positive values move the enemy right.",
+    "finish": "Properties copied onto the attacker after firing. Use this for one-shot patterns or cooldown changes."
+  },
   "barrageRobotExit": {
+    "_comment": "Late-wave robot: fire one aimed shot and a 16-way radial burst, then retreat immediately.",
     "sound": "enemyReturn",
     "actions": [
       {
+        "_comment": "Single player-aimed bullet.",
         "fire": "aimed",
         "speed": 245,
         "kind": "robotBullet",
@@ -10,6 +27,7 @@
         "originX": -16
       },
       {
+        "_comment": "Evenly spaced full-circle burst.",
         "fire": "radial",
         "count": 16,
         "speed": 175,
@@ -18,11 +36,13 @@
         "originX": -16
       },
       {
+        "_comment": "Leave the screen to the right after firing.",
         "retreat": {
           "speed": 270
         }
       },
       {
+        "_comment": "Prevent this enemy from firing the special pattern twice.",
         "finish": {
           "usedSpecial": true,
           "fireTimer": 999
@@ -31,9 +51,11 @@
     ]
   },
   "sayoShockwave": {
+    "_comment": "Sayo first phase: three sword shockwaves centered on the player's current direction.",
     "sound": "swordWave",
     "actions": [
       {
+        "_comment": "Three-way spread. The outer offsets are approximately plus or minus 9.7 degrees.",
         "fire": "aimedSpread",
         "angleOffsets": [-0.17, 0, 0.17],
         "speed": 265,
