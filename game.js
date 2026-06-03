@@ -22,9 +22,6 @@
   const movePad = document.getElementById("move-pad");
   const moveThumb = document.getElementById("move-thumb");
   const attackButton = document.getElementById("attack-button");
-  const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-  let audioContext = null;
-  const droneLoops = new Map();
   const touchControlsEnabled =
     navigator.maxTouchPoints > 0 ||
     window.matchMedia("(pointer: coarse)").matches;
@@ -174,24 +171,17 @@
     ],
   };
 
-  const playerSprite = new Image();
-  playerSprite.src = "assets/rin-sprite-sheet.png";
-  const tsubameBossSprite = new Image();
-  tsubameBossSprite.src = "assets/tsubame-boss-sprite-sheet.png";
-  const ritsukoBossSprite = new Image();
-  ritsukoBossSprite.src = "assets/ritsuko-boss-sprite-sheet.png";
-  const sayoBossSprite = new Image();
-  sayoBossSprite.src = "assets/sayo-boss-sprite-sheet.png";
-  const stageOneEnemySprite = new Image();
-  stageOneEnemySprite.src = "assets/stage1-enemy-sprite-sheet.png";
-  const stageTwoEnemySprite = new Image();
-  stageTwoEnemySprite.src = "assets/stage2-enemy-sprite-sheet.png";
-  const stageOneBackground = new Image();
-  stageOneBackground.src = "assets/stage1-background-concept.png";
-  const stageTwoBackground = new Image();
-  stageTwoBackground.src = "assets/stage2-background-concept.png";
-  const lifeScarfIcon = new Image();
-  lifeScarfIcon.src = "assets/hud-life-scarf.png";
+  const {
+    playerSprite,
+    tsubameBossSprite,
+    ritsukoBossSprite,
+    sayoBossSprite,
+    stageOneEnemySprite,
+    stageTwoEnemySprite,
+    stageOneBackground,
+    stageTwoBackground,
+    lifeScarfIcon,
+  } = window.YOKOSHOOT_ASSETS.createImages();
   const BACKGROUND_STOPS = {
     wave1Start: 0,
     midBoss: 0.34,
@@ -246,6 +236,25 @@
   };
 
   const dialogues = CONFIG.dialogues;
+  const audio = window.YOKOSHOOT_AUDIO.createAudioSystem({
+    windowRef: window,
+    getState: () => state,
+    isDroneEnemy,
+    width: WIDTH,
+    droneLoopBaseVolume: DRONE_LOOP_BASE_VOLUME,
+    clamp,
+  });
+  const {
+    ensureAudioContext,
+    playShotSound,
+    playDroneTurnSound,
+    playLifeRecoverySound,
+    updateDroneLoopSound,
+    fadeOutDroneLoopSound,
+    playChargeCompleteSound,
+    playDashLaunchSound,
+    playVoiceLine,
+  } = audio;
 
   function makeStagePlan(config) {
     return {
@@ -444,223 +453,6 @@
       retreating: false,
       reinforcementsCalled: false,
     };
-  }
-
-  function ensureAudioContext() {
-    if (!AudioContextClass) return null;
-    if (!audioContext) audioContext = new AudioContextClass();
-    if (audioContext.state === "suspended") audioContext.resume();
-    return audioContext;
-  }
-
-  function playShotSound(kind) {
-    const audio = ensureAudioContext();
-    if (!audio) return;
-
-    if (kind === "knife") {
-      playNoiseHit(audio, 0.11, 0.08, "highpass", 1800, 0.13);
-      playToneSweep(audio, 0.12, 340, 1260, 0.06, "triangle");
-      window.setTimeout(() => playNoiseHit(audio, 0.06, 0.035, "bandpass", 3600, 0.055), 36);
-    } else if (kind === "bossSmash") {
-      playNoiseHit(audio, 0.16, 0.12, "bandpass", 720, 0.2);
-      playToneSweep(audio, 0.14, 170, 86, 0.11, "sine");
-    } else if (kind === "robotSpin") {
-      playNoiseHit(audio, 0.22, 0.18, "bandpass", 420, 0.08);
-      playToneSweep(audio, 0.18, 110, 280, 0.045, "square");
-    } else if (kind === "schoolTool") {
-      playNoiseHit(audio, 0.08, 0.055, "highpass", 2100, 0.09);
-      playToneSweep(audio, 0.09, 620, 260, 0.045, "triangle");
-    } else if (kind === "shinaiThrow") {
-      playNoiseHit(audio, 0.12, 0.09, "bandpass", 980, 0.11);
-      playToneSweep(audio, 0.1, 360, 150, 0.04, "sawtooth");
-    } else if (kind === "swordWave") {
-      playNoiseHit(audio, 0.14, 0.1, "highpass", 1400, 0.13);
-      playToneSweep(audio, 0.13, 520, 130, 0.07, "sawtooth");
-    } else {
-      playNoiseHit(audio, 0.1, 0.085, "bandpass", 1150, 0.12);
-      playToneSweep(audio, 0.08, 260, 160, 0.055, "sine");
-    }
-  }
-
-  function playNoiseHit(audio, duration, decay, filterType, frequency, volume) {
-    const sampleCount = Math.max(1, Math.floor(audio.sampleRate * duration));
-    const buffer = audio.createBuffer(1, sampleCount, audio.sampleRate);
-    const data = buffer.getChannelData(0);
-    for (let i = 0; i < sampleCount; i += 1) data[i] = Math.random() * 2 - 1;
-
-    const source = audio.createBufferSource();
-    const filter = audio.createBiquadFilter();
-    const gain = audio.createGain();
-    const now = audio.currentTime;
-    filter.type = filterType;
-    filter.frequency.setValueAtTime(frequency, now);
-    filter.Q.setValueAtTime(2.1, now);
-    gain.gain.setValueAtTime(volume, now);
-    gain.gain.exponentialRampToValueAtTime(0.0001, now + decay);
-    source.buffer = buffer;
-    source.connect(filter);
-    filter.connect(gain);
-    gain.connect(audio.destination);
-    source.start(now);
-    source.stop(now + duration);
-  }
-
-  function playToneSweep(audio, duration, startFrequency, endFrequency, volume, type) {
-    const oscillator = audio.createOscillator();
-    const gain = audio.createGain();
-    const now = audio.currentTime;
-    oscillator.type = type;
-    oscillator.frequency.setValueAtTime(startFrequency, now);
-    oscillator.frequency.exponentialRampToValueAtTime(endFrequency, now + duration);
-    gain.gain.setValueAtTime(volume, now);
-    gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
-    oscillator.connect(gain);
-    gain.connect(audio.destination);
-    oscillator.start(now);
-    oscillator.stop(now + duration);
-  }
-
-  function playDroneTurnSound() {
-    const audio = ensureAudioContext();
-    if (!audio) return;
-    playNoiseHit(audio, 0.18, 0.12, "highpass", 2800, 0.11);
-    playToneSweep(audio, 0.14, 520, 980, 0.035, "sawtooth");
-  }
-
-  function playLifeRecoverySound() {
-    const audio = ensureAudioContext();
-    if (!audio) return;
-    playNoiseHit(audio, 0.16, 0.12, "bandpass", 760, 0.055);
-    playToneSweep(audio, 0.18, 210, 310, 0.045, "sine");
-    window.setTimeout(() => playToneSweep(audio, 0.12, 440, 720, 0.035, "triangle"), 110);
-  }
-
-  function updateDroneLoopSound() {
-    const audio = ensureAudioContext();
-    if (!audio) return;
-    const now = audio.currentTime;
-    const activeDroneIds = new Set();
-    for (const enemy of state.enemies) {
-      if (!isDroneEnemy(enemy)) continue;
-      activeDroneIds.add(enemy.id);
-      if (!droneLoops.has(enemy.id)) droneLoops.set(enemy.id, createDroneLoop(audio, enemy.id));
-      const loop = droneLoops.get(enemy.id);
-      const volume = droneLoopVolume(enemy);
-      loop.stopping = false;
-      loop.gain.gain.cancelScheduledValues(now);
-      loop.gain.gain.setTargetAtTime(volume, now, 0.08);
-      loop.filter.frequency.setTargetAtTime(260 + (enemy.id % 5) * 18, now, 0.12);
-      loop.oscillator.frequency.setTargetAtTime(96 + (enemy.id % 4) * 7, now, 0.12);
-    }
-    for (const [id, loop] of droneLoops) {
-      if (activeDroneIds.has(id)) continue;
-      scheduleDroneLoopStop(id, loop, now);
-    }
-  }
-
-  function fadeOutDroneLoopSound() {
-    if (!audioContext) return;
-    const now = audioContext.currentTime;
-    for (const [id, loop] of droneLoops) {
-      scheduleDroneLoopStop(id, loop, now);
-    }
-  }
-
-  function scheduleDroneLoopStop(id, loop, now) {
-    if (loop.stopping) return;
-    loop.stopping = true;
-    fadeDroneLoop(loop, now, 0.12);
-    window.setTimeout(() => stopDroneLoop(id), 450);
-  }
-
-  function fadeDroneLoop(loop, now, timeConstant) {
-    loop.gain.gain.cancelScheduledValues(now);
-    loop.gain.gain.setTargetAtTime(0.0001, now, timeConstant);
-  }
-
-  function droneLoopVolume(enemy) {
-    const distanceToRin = Math.hypot(enemy.x - state.player.x, enemy.y - state.player.y);
-    if (distanceToRin >= WIDTH / 2) return DRONE_LOOP_BASE_VOLUME * 0.3;
-    const closeness = 1 - distanceToRin / (WIDTH / 2);
-    return DRONE_LOOP_BASE_VOLUME * (0.3 + closeness * 0.7);
-  }
-
-  function stopDroneLoop(id) {
-    const loop = droneLoops.get(id);
-    if (!loop) return;
-    const now = audioContext ? audioContext.currentTime : 0;
-    try {
-      loop.noise.stop(now);
-      loop.oscillator.stop(now);
-    } catch (error) {
-      // The node may already have been stopped by a previous cleanup tick.
-    }
-    droneLoops.delete(id);
-  }
-
-  function createDroneLoop(audio, seed) {
-    const sampleCount = Math.floor(audio.sampleRate * 1.2);
-    const buffer = audio.createBuffer(1, sampleCount, audio.sampleRate);
-    const data = buffer.getChannelData(0);
-    for (let i = 0; i < sampleCount; i += 1) data[i] = Math.random() * 2 - 1;
-
-    const noise = audio.createBufferSource();
-    const filter = audio.createBiquadFilter();
-    const gain = audio.createGain();
-    const oscillator = audio.createOscillator();
-    const oscillatorGain = audio.createGain();
-    const now = audio.currentTime;
-    noise.buffer = buffer;
-    noise.loop = true;
-    filter.type = "lowpass";
-    filter.frequency.setValueAtTime(260 + (seed % 5) * 18, now);
-    filter.Q.setValueAtTime(1.4, now);
-    gain.gain.setValueAtTime(0.0001, now);
-    oscillator.type = "sawtooth";
-    oscillator.frequency.setValueAtTime(96 + (seed % 4) * 7, now);
-    oscillatorGain.gain.setValueAtTime(0.014, now);
-    noise.connect(filter);
-    filter.connect(gain);
-    oscillator.connect(oscillatorGain);
-    oscillatorGain.connect(gain);
-    gain.connect(audio.destination);
-    noise.start(now);
-    oscillator.start(now);
-    return { noise, oscillator, filter, gain, stopping: false };
-  }
-
-  function playChargeCompleteSound() {
-    const audio = ensureAudioContext();
-    if (!audio) return;
-    playNoiseHit(audio, 0.34, 0.28, "bandpass", 900, 0.055);
-    playToneSweep(audio, 0.38, 220, 980, 0.07, "sawtooth");
-    window.setTimeout(() => playToneSweep(audio, 0.2, 620, 1480, 0.045, "triangle"), 130);
-    window.setTimeout(() => playNoiseHit(audio, 0.16, 0.08, "highpass", 2600, 0.04), 260);
-  }
-
-  function playDashLaunchSound() {
-    playVoiceLine("ハッ", "cool");
-    window.setTimeout(() => {
-      const audio = ensureAudioContext();
-      if (!audio) return;
-      playNoiseHit(audio, 0.18, 0.13, "lowpass", 260, 0.22);
-      playToneSweep(audio, 0.16, 95, 48, 0.16, "sine");
-    }, 75);
-  }
-
-  function playVoiceLine(text, voiceStyle) {
-    if (!("speechSynthesis" in window) || !("SpeechSynthesisUtterance" in window)) return;
-    window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(text);
-    const voices = window.speechSynthesis.getVoices();
-    const japaneseVoice =
-      voices.find((voice) => voice.lang && voice.lang.toLowerCase().startsWith("ja")) || voices[0];
-    if (japaneseVoice) utterance.voice = japaneseVoice;
-    utterance.lang = "ja-JP";
-    utterance.volume = voiceStyle === "cool" ? 0.62 : 0.82;
-    utterance.rate = voiceStyle === "cool" ? 1.12 : 1.08;
-    utterance.pitch = voiceStyle === "cool" ? 0.82 : 1.18;
-    window.speechSynthesis.speak(utterance);
   }
 
   function shootKnife() {
@@ -1174,7 +966,7 @@
   }
 
   function updateReinforcementEnemyMovement(enemy) {
-    if (enemy.wave !== "midBossReinforcement") return;
+    if (state.stage !== 2 || enemy.wave !== "midBossReinforcement") return;
     const moveSpeed = getEnemyGameplay(enemy.type).moveSpeed;
     if (enemy.reinforcementPass === "toLeft" && enemy.x <= 0) {
       enemy.x = 0;
@@ -1199,7 +991,7 @@
   }
 
   function normalizeAngle(angle) {
-    return Math.atan2(Math.sin(angle), Math.cos(angle));
+    return window.YOKOSHOOT_MATH.normalizeAngle(angle);
   }
 
   function getEnemyGameplay(type) {
@@ -1823,11 +1615,11 @@
   }
 
   function lerp(a, b, t) {
-    return a + (b - a) * t;
+    return window.YOKOSHOOT_MATH.lerp(a, b, t);
   }
 
   function easeInOut(t) {
-    return t * t * (3 - 2 * t);
+    return window.YOKOSHOOT_MATH.easeInOut(t);
   }
 
   function drawFallbackBackground() {
@@ -2123,6 +1915,7 @@
 
   function drawStageTwoEnemy(enemy) {
     if (state.stage !== 2) return false;
+    applyStageTwoReinforcementFacing(enemy);
     if (drawStageTwoEnemySprite(enemy)) return true;
     if (enemy.type === "cleaningRobot") {
       const spin = enemy.chargeState === "windup" && Math.floor(state.elapsed * 24) % 2;
@@ -2165,7 +1958,6 @@
       pixelRect(-16, 18, 10, 12);
       pixelRect(6, 18, 10, 12);
     } else {
-      if (enemy.wave === "midBossReinforcement" && enemy.vx > 0) ctx.scale(-1, 1);
       ctx.fillStyle = enemy.type === "glassesEnforcer" ? "#c9d8f4" : "#e4a8c1";
       pixelRect(-16, -42, 32, 28);
       pixelRect(-24, -14, 48, 54);
@@ -2175,6 +1967,10 @@
       if (enemy.type === "glassesEnforcer") pixelRect(-14, -29, 28, 5);
     }
     return true;
+  }
+
+  function applyStageTwoReinforcementFacing(enemy) {
+    if (enemy.wave === "midBossReinforcement" && enemy.vx > 0) ctx.scale(-1, 1);
   }
 
   function drawStageTwoEnemySprite(enemy) {
@@ -2470,11 +2266,11 @@
   }
 
   function distance(a, b) {
-    return Math.hypot(a.x - b.x, a.y - b.y);
+    return window.YOKOSHOOT_MATH.distance(a, b);
   }
 
   function clamp(value, min, max) {
-    return Math.max(min, Math.min(max, value));
+    return window.YOKOSHOOT_MATH.clamp(value, min, max);
   }
 
   function getMovementInput() {
