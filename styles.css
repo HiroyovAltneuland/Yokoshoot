@@ -9,11 +9,6 @@
   box-sizing: border-box;
 }
 
-html {
-  touch-action: none;
-  -webkit-text-size-adjust: 100%;
-}
-
 body {
   min-width: 320px;
   min-height: 100vh;
@@ -22,9 +17,9 @@ body {
   overflow: hidden;
   background: #050712;
   overscroll-behavior: none;
-  touch-action: none;
   user-select: none;
   -webkit-user-select: none;
+  -webkit-text-size-adjust: 100%;
 }
 
 [hidden] {
@@ -200,7 +195,6 @@ h1 img {
   height: 100dvh;
   overflow: hidden;
   background: #000;
-  touch-action: none;
   user-select: none;
   -webkit-user-select: none;
 }
@@ -216,7 +210,6 @@ h1 img {
   background: #111827;
   image-rendering: pixelated;
   image-rendering: crisp-edges;
-  touch-action: none;
   user-select: none;
   -webkit-user-select: none;
 }
@@ -235,7 +228,7 @@ h1 img {
   height: min(100dvh, 56.25vw);
   aspect-ratio: 16 / 9;
   pointer-events: none;
-  touch-action: none;
+  touch-action: manipulation;
   user-select: none;
   -webkit-user-select: none;
 }
@@ -244,13 +237,13 @@ h1 img {
 .attack-button {
   position: absolute;
   pointer-events: auto;
-  touch-action: none;
+  touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
 }
 
 .move-pad *,
 .attack-button * {
-  touch-action: none;
+  touch-action: manipulation;
   user-select: none;
   -webkit-user-select: none;
 }

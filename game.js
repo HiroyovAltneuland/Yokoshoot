@@ -2579,6 +2579,26 @@
     }
   }
 
+  function setupMobileSafariZoomGuard() {
+    if (!touchControlsEnabled) return;
+    let multiTouchGestureActive = false;
+    const preventSingleTouchDefault = (event) => {
+      if (gameScreen.hidden || !gameScreen.contains(event.target)) return;
+      if (event.touches && event.touches.length > 1) {
+        multiTouchGestureActive = true;
+        return;
+      }
+      if (multiTouchGestureActive) {
+        if (!event.touches || event.touches.length === 0) multiTouchGestureActive = false;
+        return;
+      }
+      event.preventDefault();
+    };
+    for (const eventName of ["touchstart", "touchmove", "touchend"]) {
+      gameScreen.addEventListener(eventName, preventSingleTouchDefault, { passive: false });
+    }
+  }
+
   function tryEnterMobileFullscreen() {
     if (!touchControlsEnabled || !document.documentElement.requestFullscreen) return;
     document.documentElement.requestFullscreen()
@@ -2626,6 +2646,7 @@
   /* DEV_DEBUG_ONLY_END */
 
   setupTouchControls();
+  setupMobileSafariZoomGuard();
   startButton.addEventListener("click", () => {
     tryEnterMobileFullscreen();
     startGame();
