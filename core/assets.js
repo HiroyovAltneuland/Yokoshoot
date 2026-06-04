@@ -9,6 +9,7 @@
     stageOneEnemySprite: "assets/stage1-enemy-sprite-sheet.png",
     stageTwoEnemySprite: "assets/stage2-enemy-sprite-sheet.png",
     stageTwoReinforcementSprite: "assets/stage2-reinforcement-sprite-sheet.png",
+    stageTwoGlassesEnforcerRun6Sprite: "assets/stage2-glasses-enforcer-run6-sprite-sheet.png",
     stageOneBackground: "assets/stage1-background-concept.png",
     stageTwoBackground: "assets/stage2-background-concept.png",
     lifeScarfIcon: "assets/hud-life-scarf.png",

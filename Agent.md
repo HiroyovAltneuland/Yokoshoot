@@ -207,7 +207,12 @@ The player character is:
 - Spawn exactly one glasses-wearing girl from the title art and one delinquent-looking character from the title art.
 - Each reinforcement has 3 HP and rushes toward the player.
 - Each reinforcement should run to the left edge, reverse toward the right edge, reverse again, and finally leave through the left edge.
-- Stage 2 mid-boss reinforcements use `assets/stage2-reinforcement-sprite-sheet.png`: row 0 is `glassesEnforcer`, row 1 is `yankeeEnforcer`, with 3 running frames per row.
+- Stage 2 mid-boss reinforcements use `assets/stage2-reinforcement-sprite-sheet.png`: row 0 is `glassesEnforcer`, row 1 is `yankeeEnforcer`, with 4 running frames per row.
+- The in-game `glassesEnforcer` run currently uses the dedicated 6-frame sheet `assets/stage2-glasses-enforcer-run6-sprite-sheet.png` at 8 FPS.
+- The `yankeeEnforcer` should spawn 0.6 seconds before `glassesEnforcer`, so the public morals girl reads as chasing him from behind.
+- While both reinforcements are active, `glassesEnforcer` should fire forward speech-bubble bullets that say `待ちなさい！`.
+- If one reinforcement is defeated before the other, the remaining reinforcement should fire 8-way bursts every 0.8 seconds while continuing to run.
+- If Ritsuko is defeated while reinforcements are still active or pending, the stage should wait for the reinforcements to clear before moving to wave 2.
 - During the stage 2 reinforcement bounce route, flip the sprite horizontally when its travel direction changes.
 - After summoning the reinforcements, Ritsuko should resume and layer her shooting attacks over their rushes.
 

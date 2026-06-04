@@ -117,10 +117,16 @@ window.YOKOSHOOT_CONFIG = {
     glassesEnforcer: {
       hp: 3,
       moveSpeed: 265,
+      speechBubbleIntervalSeconds: 1.05,
+      speechBubbleSpeed: 345,
+      soloShotIntervalSeconds: 0.8,
+      soloBulletSpeed: 185,
     },
     yankeeEnforcer: {
       hp: 3,
       moveSpeed: 265,
+      soloShotIntervalSeconds: 0.8,
+      soloBulletSpeed: 185,
     },
   },
 
