@@ -207,6 +207,8 @@ The player character is:
 - Spawn exactly one glasses-wearing girl from the title art and one delinquent-looking character from the title art.
 - Each reinforcement has 3 HP and rushes toward the player.
 - Each reinforcement should run to the left edge, reverse toward the right edge, reverse again, and finally leave through the left edge.
+- Stage 2 mid-boss reinforcements use `assets/stage2-reinforcement-sprite-sheet.png`: row 0 is `glassesEnforcer`, row 1 is `yankeeEnforcer`, with 3 running frames per row.
+- During the stage 2 reinforcement bounce route, flip the sprite horizontally when its travel direction changes.
 - After summoning the reinforcements, Ritsuko should resume and layer her shooting attacks over their rushes.
 
 ### Stage 2 Regular Enemies 2

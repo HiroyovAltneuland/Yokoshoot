@@ -1,0 +1,525 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Yokoshoot Sound Tool</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        font-family: "Yu Gothic", "Hiragino Kaku Gothic ProN", Meiryo, sans-serif;
+        background: #11131a;
+        color: #f4f7fb;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        min-width: 320px;
+        margin: 0;
+        background: #11131a;
+      }
+
+      main {
+        width: min(1120px, calc(100% - 32px));
+        margin: 0 auto;
+        padding: 28px 0 36px;
+      }
+
+      header {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 16px;
+        align-items: end;
+        justify-content: space-between;
+        padding-bottom: 18px;
+        border-bottom: 1px solid #323746;
+      }
+
+      h1 {
+        margin: 0 0 6px;
+        font-size: 26px;
+      }
+
+      p {
+        margin: 0;
+        color: #aab3c5;
+        line-height: 1.6;
+      }
+
+      button,
+      input,
+      textarea {
+        font: inherit;
+      }
+
+      button {
+        min-height: 38px;
+        border: 0;
+        border-radius: 6px;
+        background: #72d7ee;
+        color: #061017;
+        cursor: pointer;
+        font-weight: 800;
+      }
+
+      button.secondary {
+        background: #2c3342;
+        color: #f4f7fb;
+      }
+
+      button.warning {
+        background: #f0c348;
+        color: #151108;
+      }
+
+      .toolbar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+
+      .master {
+        display: grid;
+        grid-template-columns: minmax(120px, 1fr) minmax(180px, 420px) 64px;
+        gap: 14px;
+        align-items: center;
+        margin: 20px 0 14px;
+        padding: 16px;
+        border: 1px solid #3c4352;
+        border-radius: 8px;
+        background: #181b24;
+      }
+
+      .sound-list {
+        display: grid;
+        gap: 10px;
+      }
+
+      .sound-row {
+        display: grid;
+        grid-template-columns: minmax(180px, 1fr) minmax(180px, 360px) 58px 86px;
+        gap: 12px;
+        align-items: center;
+        padding: 14px;
+        border: 1px solid #303543;
+        border-radius: 8px;
+        background: #171a22;
+      }
+
+      .sound-name {
+        display: grid;
+        gap: 3px;
+        min-width: 0;
+      }
+
+      .sound-name strong {
+        font-size: 15px;
+      }
+
+      .sound-name span {
+        color: #aab3c5;
+        font-size: 12px;
+      }
+
+      input[type="range"] {
+        width: 100%;
+        accent-color: #72d7ee;
+      }
+
+      .value {
+        color: #f0c348;
+        font-variant-numeric: tabular-nums;
+        font-weight: 800;
+        text-align: right;
+      }
+
+      textarea {
+        width: 100%;
+        min-height: 92px;
+        margin-top: 16px;
+        padding: 12px;
+        border: 1px solid #3c4352;
+        border-radius: 8px;
+        background: #0d1017;
+        color: #f4f7fb;
+        resize: vertical;
+      }
+
+      .status {
+        min-height: 24px;
+        margin-top: 10px;
+        color: #72d7ee;
+        font-weight: 800;
+      }
+
+      @media (max-width: 760px) {
+        .master,
+        .sound-row {
+          grid-template-columns: 1fr;
+        }
+
+        .value {
+          text-align: left;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <div>
+          <h1>Sound Tool</h1>
+          <p>ゲーム内で使う全サウンドの確認と、保存済み音量倍率の調整を行います。</p>
+        </div>
+        <div class="toolbar">
+          <button id="reset-button" class="warning" type="button">Reset</button>
+          <button id="export-button" class="secondary" type="button">Export</button>
+          <button id="import-button" class="secondary" type="button">Import</button>
+          <button id="open-game-button" type="button">Open Game</button>
+        </div>
+      </header>
+
+      <section class="master" aria-label="master volume">
+        <strong>Master</strong>
+        <input id="master-slider" type="range" min="0" max="2" step="0.01" value="1">
+        <span id="master-value" class="value">100%</span>
+      </section>
+
+      <section id="sound-list" class="sound-list" aria-label="sound list"></section>
+      <textarea id="settings-json" spellcheck="false" aria-label="settings json"></textarea>
+      <p id="status" class="status" aria-live="polite"></p>
+    </main>
+
+    <script>
+      (() => {
+        "use strict";
+
+        const STORAGE_KEY = "yokoshoot.soundVolumes.v1";
+        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        let audioContext = null;
+        let previewLoop = null;
+
+        const defaults = {
+          master: 1,
+          knife: 1,
+          enemyReturn: 1,
+          bossSmash: 1,
+          robotSpin: 1,
+          schoolTool: 1,
+          shinaiThrow: 1,
+          swordWave: 1,
+          droneTurn: 1,
+          droneLoop: 1,
+          lifeRecovery: 1,
+          chargeComplete: 1,
+          dashLaunch: 1,
+          dashVoice: 1,
+          hurtVoice: 1,
+          voiceBright: 1,
+        };
+
+        const sounds = [
+          { key: "knife", label: "Rin normal shot", note: "プレイヤー通常ショット" },
+          { key: "enemyReturn", label: "Enemy return", note: "通常敵の返球・汎用弾" },
+          { key: "bossSmash", label: "Boss smash", note: "ボスの強打" },
+          { key: "robotSpin", label: "Robot spin", note: "お掃除ロボの溜め回転" },
+          { key: "schoolTool", label: "School tool throw", note: "文房具投げ" },
+          { key: "shinaiThrow", label: "Shinai throw", note: "竹刀投げ" },
+          { key: "swordWave", label: "Sword wave", note: "剣の衝撃波" },
+          { key: "droneTurn", label: "Drone turn", note: "ドローン反転" },
+          { key: "droneLoop", label: "Drone loop", note: "ドローン接近ループ" },
+          { key: "lifeRecovery", label: "Life recovery", note: "ステージ間の回復" },
+          { key: "chargeComplete", label: "Charge complete", note: "突進チャージ完了" },
+          { key: "dashLaunch", label: "Dash launch", note: "突進開始の低音" },
+          { key: "dashVoice", label: "Dash voice", note: "突進時の掛け声" },
+          { key: "hurtVoice", label: "Hurt voice", note: "被弾ボイス" },
+          { key: "voiceBright", label: "Boss voice", note: "ボス台詞ボイス" },
+        ];
+
+        const list = document.getElementById("sound-list");
+        const masterSlider = document.getElementById("master-slider");
+        const masterValue = document.getElementById("master-value");
+        const settingsJson = document.getElementById("settings-json");
+        const status = document.getElementById("status");
+        const sliders = new Map();
+        let volumes = loadVolumes();
+
+        function loadVolumes() {
+          try {
+            return { ...defaults, ...JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}") };
+          } catch (error) {
+            return { ...defaults };
+          }
+        }
+
+        function saveVolumes() {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(volumes));
+          settingsJson.value = JSON.stringify(volumes, null, 2);
+          status.textContent = "Saved";
+        }
+
+        function ensureAudioContext() {
+          if (!AudioContextClass) return null;
+          if (!audioContext) audioContext = new AudioContextClass();
+          if (audioContext.state === "suspended") audioContext.resume();
+          return audioContext;
+        }
+
+        function clamp(value, min, max) {
+          return Math.min(max, Math.max(min, value));
+        }
+
+        function soundVolume(key) {
+          return clamp(Number(volumes.master) || 0, 0, 2) * clamp(Number(volumes[key]) || 0, 0, 2);
+        }
+
+        function scaled(key, volume) {
+          return volume * soundVolume(key);
+        }
+
+        function percent(value) {
+          return `${Math.round(Number(value) * 100)}%`;
+        }
+
+        function render() {
+          masterSlider.value = volumes.master;
+          masterValue.textContent = percent(volumes.master);
+          list.textContent = "";
+          sliders.clear();
+          for (const sound of sounds) {
+            const row = document.createElement("div");
+            row.className = "sound-row";
+            row.innerHTML = `
+              <div class="sound-name">
+                <strong>${sound.label}</strong>
+                <span>${sound.note}</span>
+              </div>
+              <input type="range" min="0" max="2" step="0.01" value="${volumes[sound.key]}">
+              <span class="value">${percent(volumes[sound.key])}</span>
+              <button type="button">Play</button>
+            `;
+            const slider = row.querySelector("input");
+            const value = row.querySelector(".value");
+            const button = row.querySelector("button");
+            slider.addEventListener("input", () => {
+              volumes[sound.key] = Number(slider.value);
+              value.textContent = percent(volumes[sound.key]);
+              saveVolumes();
+              if (sound.key === "droneLoop" && previewLoop) previewLoop.gain.gain.value = scaled("droneLoop", 0.026);
+            });
+            button.addEventListener("click", () => playSound(sound.key));
+            sliders.set(sound.key, { slider, value });
+            list.append(row);
+          }
+          settingsJson.value = JSON.stringify(volumes, null, 2);
+        }
+
+        function playNoiseHit(audio, duration, decay, filterType, frequency, volume) {
+          const sampleCount = Math.max(1, Math.floor(audio.sampleRate * duration));
+          const buffer = audio.createBuffer(1, sampleCount, audio.sampleRate);
+          const data = buffer.getChannelData(0);
+          for (let i = 0; i < sampleCount; i += 1) data[i] = Math.random() * 2 - 1;
+          const source = audio.createBufferSource();
+          const filter = audio.createBiquadFilter();
+          const gain = audio.createGain();
+          const now = audio.currentTime;
+          filter.type = filterType;
+          filter.frequency.setValueAtTime(frequency, now);
+          filter.Q.setValueAtTime(2.1, now);
+          gain.gain.setValueAtTime(volume, now);
+          gain.gain.exponentialRampToValueAtTime(0.0001, now + decay);
+          source.buffer = buffer;
+          source.connect(filter);
+          filter.connect(gain);
+          gain.connect(audio.destination);
+          source.start(now);
+          source.stop(now + duration);
+        }
+
+        function playToneSweep(audio, duration, startFrequency, endFrequency, volume, type) {
+          const oscillator = audio.createOscillator();
+          const gain = audio.createGain();
+          const now = audio.currentTime;
+          oscillator.type = type;
+          oscillator.frequency.setValueAtTime(startFrequency, now);
+          oscillator.frequency.exponentialRampToValueAtTime(endFrequency, now + duration);
+          gain.gain.setValueAtTime(volume, now);
+          gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+          oscillator.connect(gain);
+          gain.connect(audio.destination);
+          oscillator.start(now);
+          oscillator.stop(now + duration);
+        }
+
+        function playShotSound(key) {
+          const audio = ensureAudioContext();
+          if (!audio) return;
+          if (key === "knife") {
+            playNoiseHit(audio, 0.11, 0.08, "highpass", 1800, scaled(key, 0.13));
+            playToneSweep(audio, 0.12, 340, 1260, scaled(key, 0.06), "triangle");
+            setTimeout(() => playNoiseHit(audio, 0.06, 0.035, "bandpass", 3600, scaled(key, 0.055)), 36);
+          } else if (key === "bossSmash") {
+            playNoiseHit(audio, 0.16, 0.12, "bandpass", 720, scaled(key, 0.2));
+            playToneSweep(audio, 0.14, 170, 86, scaled(key, 0.11), "sine");
+          } else if (key === "robotSpin") {
+            playNoiseHit(audio, 0.22, 0.18, "bandpass", 420, scaled(key, 0.08));
+            playToneSweep(audio, 0.18, 110, 280, scaled(key, 0.045), "square");
+          } else if (key === "schoolTool") {
+            playNoiseHit(audio, 0.08, 0.055, "highpass", 2100, scaled(key, 0.09));
+            playToneSweep(audio, 0.09, 620, 260, scaled(key, 0.045), "triangle");
+          } else if (key === "shinaiThrow") {
+            playNoiseHit(audio, 0.12, 0.09, "bandpass", 980, scaled(key, 0.11));
+            playToneSweep(audio, 0.1, 360, 150, scaled(key, 0.04), "sawtooth");
+          } else if (key === "swordWave") {
+            playNoiseHit(audio, 0.14, 0.1, "highpass", 1400, scaled(key, 0.13));
+            playToneSweep(audio, 0.13, 520, 130, scaled(key, 0.07), "sawtooth");
+          } else {
+            playNoiseHit(audio, 0.1, 0.085, "bandpass", 1150, scaled("enemyReturn", 0.12));
+            playToneSweep(audio, 0.08, 260, 160, scaled("enemyReturn", 0.055), "sine");
+          }
+        }
+
+        function playDroneLoopPreview() {
+          const audio = ensureAudioContext();
+          if (!audio) return;
+          stopDroneLoopPreview();
+          const sampleCount = Math.floor(audio.sampleRate * 1.2);
+          const buffer = audio.createBuffer(1, sampleCount, audio.sampleRate);
+          const data = buffer.getChannelData(0);
+          for (let i = 0; i < sampleCount; i += 1) data[i] = Math.random() * 2 - 1;
+          const noise = audio.createBufferSource();
+          const filter = audio.createBiquadFilter();
+          const gain = audio.createGain();
+          const oscillator = audio.createOscillator();
+          const oscillatorGain = audio.createGain();
+          const now = audio.currentTime;
+          noise.buffer = buffer;
+          noise.loop = true;
+          filter.type = "lowpass";
+          filter.frequency.setValueAtTime(296, now);
+          filter.Q.setValueAtTime(1.4, now);
+          gain.gain.setValueAtTime(scaled("droneLoop", 0.026), now);
+          oscillator.type = "sawtooth";
+          oscillator.frequency.setValueAtTime(110, now);
+          oscillatorGain.gain.setValueAtTime(scaled("droneLoop", 0.014), now);
+          noise.connect(filter);
+          filter.connect(gain);
+          oscillator.connect(oscillatorGain);
+          oscillatorGain.connect(gain);
+          gain.connect(audio.destination);
+          noise.start(now);
+          oscillator.start(now);
+          previewLoop = { noise, oscillator, gain };
+          setTimeout(stopDroneLoopPreview, 1500);
+        }
+
+        function stopDroneLoopPreview() {
+          if (!previewLoop || !audioContext) return;
+          const now = audioContext.currentTime;
+          try {
+            previewLoop.gain.gain.setTargetAtTime(0.0001, now, 0.08);
+            previewLoop.noise.stop(now + 0.35);
+            previewLoop.oscillator.stop(now + 0.35);
+          } catch (error) {
+            // Already stopped.
+          }
+          previewLoop = null;
+        }
+
+        function playVoice(text, style, key) {
+          if (!("speechSynthesis" in window) || !("SpeechSynthesisUtterance" in window)) return;
+          speechSynthesis.cancel();
+          const utterance = new SpeechSynthesisUtterance(text);
+          const voices = speechSynthesis.getVoices();
+          const japaneseVoice = voices.find((voice) => voice.lang && voice.lang.toLowerCase().startsWith("ja")) || voices[0];
+          if (japaneseVoice) utterance.voice = japaneseVoice;
+          utterance.lang = "ja-JP";
+          utterance.volume = Math.min(1, scaled(key, style === "cool" ? 0.62 : 0.82));
+          utterance.rate = style === "cool" ? 1.12 : 1.08;
+          utterance.pitch = style === "cool" ? 0.82 : 1.18;
+          speechSynthesis.speak(utterance);
+        }
+
+        function playSound(key) {
+          if (key === "droneLoop") {
+            playDroneLoopPreview();
+          } else if (key === "droneTurn") {
+            const audio = ensureAudioContext();
+            playNoiseHit(audio, 0.18, 0.12, "highpass", 2800, scaled(key, 0.11));
+            playToneSweep(audio, 0.14, 520, 980, scaled(key, 0.035), "sawtooth");
+          } else if (key === "lifeRecovery") {
+            const audio = ensureAudioContext();
+            playNoiseHit(audio, 0.16, 0.12, "bandpass", 760, scaled(key, 0.055));
+            playToneSweep(audio, 0.18, 210, 310, scaled(key, 0.045), "sine");
+            setTimeout(() => playToneSweep(audio, 0.12, 440, 720, scaled(key, 0.035), "triangle"), 110);
+          } else if (key === "chargeComplete") {
+            const audio = ensureAudioContext();
+            playNoiseHit(audio, 0.34, 0.28, "bandpass", 900, scaled(key, 0.055));
+            playToneSweep(audio, 0.38, 220, 980, scaled(key, 0.07), "sawtooth");
+            setTimeout(() => playToneSweep(audio, 0.2, 620, 1480, scaled(key, 0.045), "triangle"), 130);
+            setTimeout(() => playNoiseHit(audio, 0.16, 0.08, "highpass", 2600, scaled(key, 0.04)), 260);
+          } else if (key === "dashLaunch") {
+            const audio = ensureAudioContext();
+            playNoiseHit(audio, 0.18, 0.13, "lowpass", 260, scaled(key, 0.22));
+            playToneSweep(audio, 0.16, 95, 48, scaled(key, 0.16), "sine");
+          } else if (key === "dashVoice") {
+            playVoice("ハッ", "cool", key);
+          } else if (key === "hurtVoice") {
+            playVoice("くぅっ", "cool", key);
+          } else if (key === "voiceBright") {
+            playVoice("通さない！", "bright", key);
+          } else {
+            playShotSound(key);
+          }
+        }
+
+        masterSlider.addEventListener("input", () => {
+          volumes.master = Number(masterSlider.value);
+          masterValue.textContent = percent(volumes.master);
+          saveVolumes();
+          if (previewLoop) previewLoop.gain.gain.value = scaled("droneLoop", 0.026);
+        });
+
+        document.getElementById("reset-button").addEventListener("click", () => {
+          stopDroneLoopPreview();
+          volumes = { ...defaults };
+          saveVolumes();
+          render();
+          status.textContent = "Reset saved";
+        });
+
+        document.getElementById("export-button").addEventListener("click", async () => {
+          settingsJson.select();
+          try {
+            await navigator.clipboard.writeText(settingsJson.value);
+            status.textContent = "Copied JSON";
+          } catch (error) {
+            status.textContent = "JSON selected";
+          }
+        });
+
+        document.getElementById("import-button").addEventListener("click", () => {
+          try {
+            const imported = JSON.parse(settingsJson.value);
+            volumes = { ...defaults, ...imported };
+            saveVolumes();
+            render();
+            status.textContent = "Imported";
+          } catch (error) {
+            status.textContent = "Invalid JSON";
+          }
+        });
+
+        document.getElementById("open-game-button").addEventListener("click", () => {
+          window.open("../index.html", "_blank", "noopener");
+        });
+
+        render();
+        saveVolumes();
+      })();
+    </script>
+  </body>
+</html>

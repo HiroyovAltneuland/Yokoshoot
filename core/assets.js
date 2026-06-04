@@ -8,6 +8,7 @@
     sayoBossSprite: "assets/sayo-boss-sprite-sheet.png",
     stageOneEnemySprite: "assets/stage1-enemy-sprite-sheet.png",
     stageTwoEnemySprite: "assets/stage2-enemy-sprite-sheet.png",
+    stageTwoReinforcementSprite: "assets/stage2-reinforcement-sprite-sheet.png",
     stageOneBackground: "assets/stage1-background-concept.png",
     stageTwoBackground: "assets/stage2-background-concept.png",
     lifeScarfIcon: "assets/hud-life-scarf.png",

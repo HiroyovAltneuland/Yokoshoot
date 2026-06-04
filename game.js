@@ -90,6 +90,11 @@
     barrageRobot: { row: 1, width: 92, height: 92, offsetY: 6 },
     disciplineRobot: { row: 2, width: 100, height: 100, offsetY: 4 },
   };
+  const STAGE_TWO_REINFORCEMENT_SPRITE_ROWS = 2;
+  const STAGE_TWO_REINFORCEMENT_SPRITE_CONFIG = {
+    glassesEnforcer: { row: 0, width: 200, height: 150, offsetY: 0 },
+    yankeeEnforcer: { row: 1, width: 200, height: 150, offsetY: 0 },
+  };
   const ENEMY_SPRITE_CONFIG = {
     twintail: { row: 0, width: 185, height: 139, radius: 25, offsetX: 0, offsetY: 0 },
     visorGlasses: { row: 1, width: 185, height: 139, radius: 25, offsetX: 0, offsetY: 0 },
@@ -178,6 +183,7 @@
     sayoBossSprite,
     stageOneEnemySprite,
     stageTwoEnemySprite,
+    stageTwoReinforcementSprite,
     stageOneBackground,
     stageTwoBackground,
     lifeScarfIcon,
@@ -1916,6 +1922,7 @@
   function drawStageTwoEnemy(enemy) {
     if (state.stage !== 2) return false;
     applyStageTwoReinforcementFacing(enemy);
+    if (drawStageTwoReinforcementSprite(enemy)) return true;
     if (drawStageTwoEnemySprite(enemy)) return true;
     if (enemy.type === "cleaningRobot") {
       const spin = enemy.chargeState === "windup" && Math.floor(state.elapsed * 24) % 2;
@@ -1971,6 +1978,33 @@
 
   function applyStageTwoReinforcementFacing(enemy) {
     if (enemy.wave === "midBossReinforcement" && enemy.vx > 0) ctx.scale(-1, 1);
+  }
+
+  function drawStageTwoReinforcementSprite(enemy) {
+    const config = STAGE_TWO_REINFORCEMENT_SPRITE_CONFIG[enemy.type];
+    if (
+      !config ||
+      !stageTwoReinforcementSprite.complete ||
+      stageTwoReinforcementSprite.naturalWidth === 0
+    ) {
+      return false;
+    }
+
+    const frame = Math.floor(state.elapsed * 10) % ENEMY_SPRITE_COLUMNS;
+    const sourceWidth = stageTwoReinforcementSprite.naturalWidth / ENEMY_SPRITE_COLUMNS;
+    const sourceHeight = stageTwoReinforcementSprite.naturalHeight / STAGE_TWO_REINFORCEMENT_SPRITE_ROWS;
+    ctx.drawImage(
+      stageTwoReinforcementSprite,
+      frame * sourceWidth + ENEMY_SPRITE_SOURCE_INSET,
+      config.row * sourceHeight + ENEMY_SPRITE_SOURCE_INSET,
+      sourceWidth - ENEMY_SPRITE_SOURCE_INSET * 2,
+      sourceHeight - ENEMY_SPRITE_SOURCE_INSET * 2,
+      -config.width * 0.5,
+      -config.height * 0.62 + config.offsetY,
+      config.width,
+      config.height
+    );
+    return true;
   }
 
   function drawStageTwoEnemySprite(enemy) {
