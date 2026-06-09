@@ -26,6 +26,7 @@ window.YOKOSHOOT_CONFIG = {
     dash: {
       chargeSeconds: 1,
       speedMultiplier: 3,
+      returnSpeedMultiplier: 2,
       damage: 9,
       cooldownSeconds: 4,
     },
@@ -152,7 +153,7 @@ window.YOKOSHOOT_CONFIG = {
     sayo: {
       shockwaveIntervalSeconds: 0.72,
       dashIntervalSeconds: 3,
-      idleShotIntervalSeconds: 1,
+      idleShotIntervalSeconds: 0.5,
       dashTelegraphSeconds: 1,
       dashTraceSeconds: 0.5,
       dashTargetPadding: 80,

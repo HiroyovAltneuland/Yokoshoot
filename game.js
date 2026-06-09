@@ -80,6 +80,7 @@
   const CHARGE_SECONDS = CONFIG.player.dash.chargeSeconds;
   const PLAYER_SPEED = CONFIG.player.moveSpeed;
   const DASH_SPEED = PLAYER_SPEED * CONFIG.player.dash.speedMultiplier;
+  const DASH_RETURN_SPEED = PLAYER_SPEED * CONFIG.player.dash.returnSpeedMultiplier;
   const DASH_DAMAGE = CONFIG.player.dash.damage;
   const DASH_COOLDOWN_SECONDS = CONFIG.player.dash.cooldownSeconds;
   const DRONE_LOOP_BASE_VOLUME = 0.026;
@@ -130,6 +131,8 @@
   const HUMANOID_CENTER_Y = Math.round((HUMANOID_MIN_Y + HUMANOID_MAX_Y) / 2);
   const STAGE_TWO_GROUND_MIN_Y = Math.round(HEIGHT * 0.76);
   const STAGE_TWO_GROUND_MAX_Y = Math.round(HEIGHT * 0.9);
+  const STAGE_TWO_UPPER_LANE_MIN_Y = Math.round(HEIGHT * 0.54);
+  const STAGE_TWO_UPPER_LANE_MAX_Y = Math.round(HEIGHT * 0.66);
   const BOSS_MIN_Y = HUMANOID_MIN_Y - BOSS_SPRITE_FOOT_OFFSET_Y;
   const BOSS_MAX_Y = HUMANOID_MAX_Y - BOSS_SPRITE_FOOT_OFFSET_Y;
   const BOSS_CENTER_Y = Math.round((BOSS_MIN_Y + BOSS_MAX_Y) / 2);
@@ -214,10 +217,11 @@
     boss: 1,
   };
   const BACKGROUND_PARALLAX_LAYERS = [
-    { top: 0, bottom: 0.58, strength: 0 },
+    { top: 0, bottom: 0.58, strength: 0.08 },
     { top: 0.34, bottom: 0.82, strength: 0.08 },
     { top: 0.72, bottom: 1, strength: 0.16 },
   ];
+  const STAGE_TWO_BACKGROUND_Y_OFFSET = Math.round(HEIGHT * 0.05);
   const START_PHASES = new Set([
     "wave1",
     "midBossDialogue",
@@ -373,7 +377,7 @@
     state.mode = "dialogue";
     const dialogueKey = getDialogueKey(kind);
     const bossPortrait = kind === "boss" || kind === "bossDefeated";
-    enemyPortrait.src = state.stage === 2
+    const portraitSrc = state.stage === 2
       ? kind === "midBoss"
         ? "assets/dialogue-ritsuko-midboss.png"
         : kind === "bossDefeated"
@@ -382,7 +386,8 @@
       : kind === "bossDefeated"
         ? "assets/dialogue-tsubame-defeated.png"
         : bossPortrait ? "assets/dialogue-tsubame-boss.png" : "assets/dialogue-tsubame-midboss.png";
-    enemyPortrait.alt = state.stage === 2 ? (bossPortrait ? "一文字 小夜" : "鬼塚 律子") : "朝比奈 つばめ";
+    const portraitAlt = state.stage === 2 ? (bossPortrait ? "一文字 小夜" : "鬼塚 律子") : "朝比奈 つばめ";
+    setEnemyPortrait(portraitSrc, portraitAlt);
     state.dialogueAutoSeconds = kind === "midBoss" ? MID_BOSS_DIALOGUE_AUTO_SECONDS : DIALOGUE_AUTO_SECONDS;
     state.dialogue = dialogues[dialogueKey].map((entry) => ({ ...entry, nextPhase }));
     state.dialogueIndex = 0;
@@ -397,6 +402,21 @@
       return `stage2${kind === "boss" ? "Boss" : "MidBoss"}`;
     }
     return kind;
+  }
+
+  function setEnemyPortrait(src, alt) {
+    enemyPortrait.alt = alt;
+    if (enemyPortrait.dataset.currentSrc === src) {
+      enemyPortrait.style.opacity = "1";
+      return;
+    }
+    enemyPortrait.dataset.currentSrc = src;
+    enemyPortrait.style.opacity = "0";
+    enemyPortrait.onload = () => {
+      enemyPortrait.style.opacity = "1";
+    };
+    enemyPortrait.src = src;
+    if (enemyPortrait.complete && enemyPortrait.naturalWidth > 0) enemyPortrait.style.opacity = "1";
   }
 
   function startBossDefeatedDialogue() {
@@ -523,6 +543,7 @@
       state.boss.dashState = "idle";
       state.boss.dashTrace = null;
       state.boss.idleShotTimer = CONFIG.bosses.sayo.idleShotIntervalSeconds;
+      state.boss.sayoDashCount = 0;
       state.message = "ボス 一文字小夜";
     } else {
       state.boss = null;
@@ -598,6 +619,35 @@
         : 0,
     });
     if (enemyType === "cleaningRobot") playShotSound("robotSpin");
+    state.nextEnemyId += 1;
+    if (state.stage === 2 && state.phase === "wave2" && enemyType === "disciplineRobot") {
+      spawnStageTwoUpperDisciplineRobot(spawnIndex);
+    }
+  }
+
+  function spawnStageTwoUpperDisciplineRobot(spawnIndex) {
+    const enemyType = "disciplineRobot";
+    const enemyConfig = ENEMY_SPRITE_CONFIG[enemyType];
+    const gameplay = getEnemyGameplay(enemyType);
+    const y = randomBetween(STAGE_TWO_UPPER_LANE_MIN_Y, STAGE_TWO_UPPER_LANE_MAX_Y);
+    state.enemies.push({
+      id: state.nextEnemyId,
+      x: WIDTH + 28,
+      y,
+      vx: getEnemySpawnSpeed(enemyType),
+      r: enemyConfig.radius,
+      hp: gameplay.hp,
+      fireTimer: getEnemyFirstShotTimer(gameplay),
+      type: enemyType,
+      wave: state.phase,
+      spawnIndex,
+      usedSpecial: false,
+      chargeState: "idle",
+      windupTime: 0,
+      groundY: y,
+      zigzagDirection: Math.random() < 0.5 ? -1 : 1,
+      motionTime: Math.random() * gameplay.jumpSeconds,
+    });
     state.nextEnemyId += 1;
   }
 
@@ -947,7 +997,7 @@
       const dx = player.dashOrigin.x - player.x;
       const dy = player.dashOrigin.y - player.y;
       const len = Math.hypot(dx, dy);
-      if (len <= PLAYER_SPEED * dt) {
+      if (len <= DASH_RETURN_SPEED * dt) {
         player.x = player.dashOrigin.x;
         player.y = player.dashOrigin.y;
         player.dashState = "none";
@@ -956,8 +1006,8 @@
         player.trail = [];
         return;
       }
-      player.x += (dx / len) * PLAYER_SPEED * dt;
-      player.y += (dy / len) * PLAYER_SPEED * dt;
+      player.x += (dx / len) * DASH_RETURN_SPEED * dt;
+      player.y += (dy / len) * DASH_RETURN_SPEED * dt;
     }
 
     for (const trail of player.trail) trail.life -= dt;
@@ -1345,7 +1395,9 @@
   }
 
   function updateSayoAttack(boss, dt) {
+    const wasChanged = boss.changed;
     boss.changed = boss.hp <= STAGE_TWO_PLAN.bossPhaseTarget;
+    if (boss.changed && !wasChanged) state.message = "小夜の攻撃が激しくなった！";
     if (!boss.changed) {
       boss.invincible = false;
       if (boss.fireTimer > 0) return;
@@ -1400,6 +1452,7 @@
     boss.dashState = "telegraph";
     boss.dashTelegraphTimer = CONFIG.bosses.sayo.dashTelegraphSeconds;
     boss.dashTraceTimer = 0;
+    boss.sayoDashCount = (boss.sayoDashCount || 0) + 1;
     boss.dashTrace = createSayoDashTrace(boss);
     boss.invincible = true;
     playShotSound("sayoDashClang");
@@ -1407,12 +1460,21 @@
 
   function createSayoDashTrace(boss) {
     const padding = CONFIG.bosses.sayo.dashTargetPadding;
-    const points = [
+    const targetSegments = Math.min(8, 2 + (boss.sayoDashCount || 1) * 2);
+    const routePoints = [
       { x: boss.x, y: boss.y },
-      { x: 0, y: HEIGHT * 0.5 },
+      getSayoDashLeftEdgeTarget(boss),
       { x: randomBetween(padding, WIDTH - padding), y: 0 },
       { x: randomBetween(padding, WIDTH - padding), y: HEIGHT },
+      { x: WIDTH, y: randomBetween(padding, HEIGHT - padding) },
+      { x: randomBetween(padding, WIDTH - padding), y: 0 },
+      { x: 0, y: randomBetween(padding, HEIGHT - padding) },
+      { x: randomBetween(padding, WIDTH - padding), y: HEIGHT },
       { x: boss.x, y: boss.y },
+    ];
+    const points = [
+      ...routePoints.slice(0, targetSegments),
+      routePoints[routePoints.length - 1],
     ];
     const lengths = [];
     let totalLength = 0;
@@ -1422,6 +1484,16 @@
       totalLength += length;
     }
     return { points, lengths, totalLength };
+  }
+
+  function getSayoDashLeftEdgeTarget(boss) {
+    const dx = state.player.x - boss.x;
+    if (Math.abs(dx) < 0.001) return { x: 0, y: clamp(state.player.y, 0, HEIGHT) };
+    const ratio = -boss.x / dx;
+    return {
+      x: 0,
+      y: clamp(boss.y + (state.player.y - boss.y) * ratio, 0, HEIGHT),
+    };
   }
 
   function getPointOnSayoDashTrace(trace, progress) {
@@ -1667,6 +1739,8 @@
     const sourceHeight = stageTwoBackground.naturalHeight;
     const sourceWidth = Math.min(stageTwoBackground.naturalWidth, sourceHeight * (WIDTH / HEIGHT));
     const stop = getStageTwoProgress();
+    ctx.fillStyle = "#070916";
+    pixelRect(0, 0, WIDTH, HEIGHT);
     for (const layer of BACKGROUND_PARALLAX_LAYERS) {
       drawStageTwoBackgroundLayer(sourceWidth, stop, layer);
     }
@@ -1677,8 +1751,8 @@
     const sourceTop = Math.round(sourceHeight * layer.top);
     const sourceBottom = Math.round(sourceHeight * layer.bottom);
     const sourceLayerHeight = Math.max(1, sourceBottom - sourceTop);
-    const destTop = Math.round(HEIGHT * layer.top);
-    const destBottom = Math.round(HEIGHT * layer.bottom);
+    const destTop = Math.round(HEIGHT * layer.top) + STAGE_TWO_BACKGROUND_Y_OFFSET;
+    const destBottom = Math.round(HEIGHT * layer.bottom) + STAGE_TWO_BACKGROUND_Y_OFFSET;
     const destLayerHeight = Math.max(1, destBottom - destTop);
     const sourceX = getStageTwoBackgroundSourceX(sourceWidth, stop, layer.strength);
     ctx.drawImage(

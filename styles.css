@@ -353,6 +353,7 @@ h1 img {
   object-position: bottom center;
   filter: drop-shadow(0 18px 28px rgba(0, 0, 0, 0.58));
   transform: translateX(-50%);
+  transition: opacity 120ms ease;
 }
 
 .portrait span {
