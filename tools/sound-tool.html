@@ -211,6 +211,7 @@
           schoolTool: 1,
           shinaiThrow: 1,
           swordWave: 1,
+          sayoDashClang: 1,
           droneTurn: 1,
           droneLoop: 1,
           lifeRecovery: 1,
@@ -229,6 +230,7 @@
           { key: "schoolTool", label: "School tool throw", note: "文房具投げ" },
           { key: "shinaiThrow", label: "Shinai throw", note: "竹刀投げ" },
           { key: "swordWave", label: "Sword wave", note: "剣の衝撃波" },
+          { key: "sayoDashClang", label: "Sayo dash clang", note: "小夜の突進予告" },
           { key: "droneTurn", label: "Drone turn", note: "ドローン反転" },
           { key: "droneLoop", label: "Drone loop", note: "ドローン接近ループ" },
           { key: "lifeRecovery", label: "Life recovery", note: "ステージ間の回復" },
@@ -376,10 +378,21 @@
           } else if (key === "swordWave") {
             playNoiseHit(audio, 0.14, 0.1, "highpass", 1400, scaled(key, 0.13));
             playToneSweep(audio, 0.13, 520, 130, scaled(key, 0.07), "sawtooth");
+          } else if (key === "sayoDashClang") {
+            playSayoDashClang(audio, key, 0);
+            setTimeout(() => playSayoDashClang(audio, key, 1), 70);
+            setTimeout(() => playSayoDashClang(audio, key, 2), 140);
           } else {
             playNoiseHit(audio, 0.1, 0.085, "bandpass", 1150, scaled("enemyReturn", 0.12));
             playToneSweep(audio, 0.08, 260, 160, scaled("enemyReturn", 0.055), "sine");
           }
+        }
+
+        function playSayoDashClang(audio, key, index) {
+          const pitch = 1380 + index * 210;
+          const volumeDrop = index * 0.018;
+          playNoiseHit(audio, 0.085, 0.052, "bandpass", pitch, scaled(key, 0.16 - volumeDrop));
+          playToneSweep(audio, 0.075, 820 + index * 120, 450 + index * 90, scaled(key, 0.055), "square");
         }
 
         function playDroneLoopPreview() {

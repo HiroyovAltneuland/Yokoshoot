@@ -11,6 +11,7 @@
     schoolTool: 1,
     shinaiThrow: 1,
     swordWave: 1,
+    sayoDashClang: 1,
     droneTurn: 1,
     droneLoop: 1,
     lifeRecovery: 1,
@@ -84,10 +85,21 @@
       } else if (kind === "swordWave") {
         playNoiseHit(audio, 0.14, 0.1, "highpass", 1400, scaleSoundVolume(kind, 0.13));
         playToneSweep(audio, 0.13, 520, 130, scaleSoundVolume(kind, 0.07), "sawtooth");
+      } else if (kind === "sayoDashClang") {
+        playSayoDashClang(audio, kind, 0);
+        windowRef.setTimeout(() => playSayoDashClang(audio, kind, 1), 70);
+        windowRef.setTimeout(() => playSayoDashClang(audio, kind, 2), 140);
       } else {
         playNoiseHit(audio, 0.1, 0.085, "bandpass", 1150, scaleSoundVolume("enemyReturn", 0.12));
         playToneSweep(audio, 0.08, 260, 160, scaleSoundVolume("enemyReturn", 0.055), "sine");
       }
+    }
+
+    function playSayoDashClang(audio, kind, index) {
+      const pitch = 1380 + index * 210;
+      const volumeDrop = index * 0.018;
+      playNoiseHit(audio, 0.085, 0.052, "bandpass", pitch, scaleSoundVolume(kind, 0.16 - volumeDrop));
+      playToneSweep(audio, 0.075, 820 + index * 120, 450 + index * 90, scaleSoundVolume(kind, 0.055), "square");
     }
 
     function playNoiseHit(audio, duration, decay, filterType, frequency, volume) {

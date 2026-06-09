@@ -507,6 +507,8 @@
       state.boss = makeBoss("一文字 小夜", STAGE_TWO_PLAN.bossDefeatTarget, 3);
       state.boss.dashTimer = CONFIG.bosses.sayo.dashIntervalSeconds;
       state.boss.dashState = "idle";
+      state.boss.dashTrace = null;
+      state.boss.idleShotTimer = CONFIG.bosses.sayo.idleShotIntervalSeconds;
       state.message = "ボス 一文字小夜";
     } else {
       state.boss = null;
@@ -1331,35 +1333,102 @@
   function updateSayoAttack(boss, dt) {
     boss.changed = boss.hp <= STAGE_TWO_PLAN.bossPhaseTarget;
     if (!boss.changed) {
+      boss.invincible = false;
       if (boss.fireTimer > 0) return;
       boss.fireTimer = CONFIG.bosses.sayo.shockwaveIntervalSeconds;
       executeBulletPattern(boss, "sayoShockwave");
       return;
     }
-    boss.dashTimer -= dt;
-    if (boss.dashState === "forward") {
-      boss.x -= CONFIG.bosses.sayo.dashForwardSpeed * dt;
+
+    if (boss.dashState === "telegraph") {
+      boss.dashTelegraphTimer -= dt;
       boss.invincible = true;
-      if (boss.x <= WIDTH * 0.54) {
-        boss.dashState = "return";
+      if (boss.dashTrace && boss.dashTrace.points.length > 0) {
+        boss.x = boss.dashTrace.points[0].x;
+        boss.y = boss.dashTrace.points[0].y;
+      }
+      if (boss.dashTelegraphTimer <= 0) {
+        boss.dashState = "trace";
+        boss.dashTraceTimer = 0;
+      }
+      return;
+    }
+
+    if (boss.dashState === "trace") {
+      boss.invincible = true;
+      boss.dashTraceTimer += dt;
+      const progress = clamp(boss.dashTraceTimer / CONFIG.bosses.sayo.dashTraceSeconds, 0, 1);
+      const point = getPointOnSayoDashTrace(boss.dashTrace, progress);
+      boss.x = point.x;
+      boss.y = point.y;
+      if (progress >= 1) {
+        boss.dashState = "idle";
+        boss.dashTimer = CONFIG.bosses.sayo.dashIntervalSeconds;
+        boss.dashTrace = null;
         boss.invincible = false;
       }
       return;
     }
-    if (boss.dashState === "return") {
-      boss.x += CONFIG.bosses.sayo.dashReturnSpeed * dt;
-      if (boss.x >= WIDTH - 130) {
-        boss.x = WIDTH - 130;
-        boss.dashState = "idle";
-        boss.dashTimer = CONFIG.bosses.sayo.dashIntervalSeconds;
-      }
-      return;
+
+    boss.invincible = false;
+    boss.idleShotTimer = Math.max(0, (boss.idleShotTimer || 0) - dt);
+    if (boss.idleShotTimer <= 0) {
+      executeBulletPattern(boss, "sayoIdleRadial");
+      boss.idleShotTimer = CONFIG.bosses.sayo.idleShotIntervalSeconds;
     }
+    boss.dashTimer -= dt;
     if (boss.dashTimer <= 0) {
-      playShotSound("swordWave");
-      boss.dashState = "forward";
-      boss.invincible = true;
+      startSayoDashTelegraph(boss);
     }
+  }
+
+  function startSayoDashTelegraph(boss) {
+    boss.dashState = "telegraph";
+    boss.dashTelegraphTimer = CONFIG.bosses.sayo.dashTelegraphSeconds;
+    boss.dashTraceTimer = 0;
+    boss.dashTrace = createSayoDashTrace(boss);
+    boss.invincible = true;
+    playShotSound("sayoDashClang");
+  }
+
+  function createSayoDashTrace(boss) {
+    const padding = CONFIG.bosses.sayo.dashTargetPadding;
+    const points = [
+      { x: boss.x, y: boss.y },
+      { x: 0, y: HEIGHT * 0.5 },
+      { x: randomBetween(padding, WIDTH - padding), y: 0 },
+      { x: randomBetween(padding, WIDTH - padding), y: HEIGHT },
+      { x: boss.x, y: boss.y },
+    ];
+    const lengths = [];
+    let totalLength = 0;
+    for (let index = 1; index < points.length; index += 1) {
+      const length = distance(points[index - 1], points[index]);
+      lengths.push(length);
+      totalLength += length;
+    }
+    return { points, lengths, totalLength };
+  }
+
+  function getPointOnSayoDashTrace(trace, progress) {
+    if (!trace || trace.points.length === 0) return { x: WIDTH - 130, y: BOSS_CENTER_Y };
+    if (progress <= 0) return trace.points[0];
+    if (progress >= 1) return trace.points[trace.points.length - 1];
+    let remaining = trace.totalLength * progress;
+    for (let index = 0; index < trace.lengths.length; index += 1) {
+      const length = trace.lengths[index];
+      if (remaining <= length) {
+        const from = trace.points[index];
+        const to = trace.points[index + 1];
+        const ratio = length > 0 ? remaining / length : 0;
+        return {
+          x: from.x + (to.x - from.x) * ratio,
+          y: from.y + (to.y - from.y) * ratio,
+        };
+      }
+      remaining -= length;
+    }
+    return trace.points[trace.points.length - 1];
   }
 
   function pushAimedBullet(source, speed, angleOffset, kind, radius = 8) {
@@ -1545,6 +1614,7 @@
     drawPlayer();
     drawKnives();
     drawEnemies();
+    drawSayoDashTelegraph();
     drawBoss();
     drawEnemyBullets();
     drawParticles();
@@ -2195,6 +2265,36 @@
     return true;
   }
 
+  function drawSayoDashTelegraph() {
+    const boss = state.boss;
+    if (state.stage !== 2 || !boss || boss.rank !== 3 || boss.dashState !== "telegraph" || !boss.dashTrace) return;
+
+    const points = boss.dashTrace.points;
+    const flicker = 0.08 + Math.sin(state.elapsed * 28) * 0.03;
+    ctx.save();
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    ctx.globalAlpha = 0.3 + flicker;
+    ctx.strokeStyle = "#8ff3ff";
+    ctx.lineWidth = 6;
+    ctx.shadowColor = "#8ff3ff";
+    ctx.shadowBlur = 14;
+    ctx.beginPath();
+    ctx.moveTo(points[0].x, points[0].y);
+    for (let index = 1; index < points.length; index += 1) ctx.lineTo(points[index].x, points[index].y);
+    ctx.stroke();
+
+    ctx.globalAlpha = 0.55 + flicker;
+    ctx.strokeStyle = "#f7feff";
+    ctx.lineWidth = 1;
+    ctx.shadowBlur = 0;
+    ctx.beginPath();
+    ctx.moveTo(points[0].x, points[0].y);
+    for (let index = 1; index < points.length; index += 1) ctx.lineTo(points[index].x, points[index].y);
+    ctx.stroke();
+    ctx.restore();
+  }
+
   function drawBoss() {
     const boss = state.boss;
     if (!boss) return;
@@ -2258,7 +2358,10 @@
   function drawSayoBossSprite(boss) {
     if (!sayoBossSprite.complete || sayoBossSprite.naturalWidth === 0) return false;
 
-    const frame = Math.floor(state.elapsed * 7) % BOSS_SPRITE_COLUMNS;
+    const frame =
+      boss.dashState === "telegraph"
+        ? BOSS_SPRITE_COLUMNS - 1
+        : Math.floor(state.elapsed * 7) % BOSS_SPRITE_COLUMNS;
     const row = boss.changed ? 1 : 0;
     const sourceWidth = sayoBossSprite.naturalWidth / BOSS_SPRITE_COLUMNS;
     const sourceHeight = sayoBossSprite.naturalHeight / BOSS_SPRITE_ROWS;

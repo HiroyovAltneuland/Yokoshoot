@@ -151,9 +151,11 @@ window.YOKOSHOOT_CONFIG = {
     },
     sayo: {
       shockwaveIntervalSeconds: 0.72,
-      dashIntervalSeconds: 4,
-      dashForwardSpeed: 540,
-      dashReturnSpeed: 250,
+      dashIntervalSeconds: 3,
+      idleShotIntervalSeconds: 1,
+      dashTelegraphSeconds: 1,
+      dashTraceSeconds: 0.5,
+      dashTargetPadding: 80,
     },
   },
 

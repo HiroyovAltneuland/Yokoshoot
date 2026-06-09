@@ -64,5 +64,18 @@
         "originX": -22
       }
     ]
+  },
+  "sayoIdleRadial": {
+    "_comment": "Sayo second phase idle: slow eight-way radial bullets.",
+    "actions": [
+      {
+        "fire": "radial",
+        "count": 8,
+        "speed": 120,
+        "kind": "robotBullet",
+        "radius": 7,
+        "originX": -18
+      }
+    ]
   }
 }
