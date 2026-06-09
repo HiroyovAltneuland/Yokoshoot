@@ -38,7 +38,21 @@
   const WIDTH = canvas.width;
   const HEIGHT = canvas.height;
   const CONFIG = window.YOKOSHOOT_CONFIG;
-  const bulletPatternsPromise = fetch("bullet-patterns.json")
+  const BUILTIN_BULLET_PATTERNS = {
+    sayoIdleRadial: {
+      actions: [
+        {
+          fire: "radial",
+          count: 8,
+          speed: 120,
+          kind: "robotBullet",
+          radius: 7,
+          originX: -18,
+        },
+      ],
+    },
+  };
+  const bulletPatternsPromise = fetch("bullet-patterns.json", { cache: "no-store" })
     .then((response) => {
       if (!response.ok) throw new Error(`Failed to load bullet-patterns.json: ${response.status}`);
       return response.json();
@@ -1445,7 +1459,7 @@
   }
 
   function executeBulletPattern(source, patternName) {
-    const pattern = bulletPatterns && bulletPatterns[patternName];
+    const pattern = (bulletPatterns && bulletPatterns[patternName]) || BUILTIN_BULLET_PATTERNS[patternName];
     if (!pattern) throw new Error(`Unknown bullet pattern: ${patternName}`);
     if (pattern.sound) playShotSound(pattern.sound);
     for (const action of pattern.actions) {
