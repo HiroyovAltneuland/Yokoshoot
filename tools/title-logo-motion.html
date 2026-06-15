@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>学園ブレード Logo Motion</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        font-family: "Yu Gothic", "Hiragino Kaku Gothic ProN", Meiryo, sans-serif;
+        background: #050712;
+        color: #f5f7ff;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        display: grid;
+        min-height: 100vh;
+        margin: 0;
+        place-items: center;
+        background:
+          radial-gradient(circle at 52% 36%, rgba(126, 232, 255, 0.14), transparent 26%),
+          linear-gradient(180deg, #09101f, #050712 65%);
+      }
+
+      main {
+        display: grid;
+        width: min(1180px, calc(100vw - 32px));
+        gap: 20px;
+      }
+
+      #logo-root {
+        display: grid;
+        min-height: min(54vw, 520px);
+        place-items: center;
+      }
+
+      #logo-root object {
+        width: min(1270px, 92vw);
+        max-height: 70vh;
+        aspect-ratio: 1983 / 1006;
+      }
+
+      .controls,
+      .principles,
+      .atoms {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+      }
+
+      button,
+      label,
+      .pill {
+        border: 1px solid rgba(126, 232, 255, 0.35);
+        border-radius: 6px;
+        background: rgba(5, 7, 18, 0.72);
+        color: #f5f7ff;
+        font: inherit;
+        font-weight: 800;
+      }
+
+      button {
+        min-height: 40px;
+        padding: 0 14px;
+        cursor: pointer;
+      }
+
+      label {
+        display: flex;
+        min-height: 40px;
+        align-items: center;
+        gap: 10px;
+        padding: 0 12px;
+      }
+
+      input[type="range"] {
+        width: 160px;
+      }
+
+      .pill {
+        padding: 7px 10px;
+        color: #7ee8ff;
+        font-size: 13px;
+      }
+
+      .atom {
+        display: grid;
+        width: 180px;
+        height: 88px;
+        place-items: center;
+        overflow: hidden;
+      }
+
+      .atom img {
+        width: 160px;
+      }
+
+      .atom-pulse img {
+        animation: pulse 1800ms ease-in-out infinite;
+      }
+
+      .atom-lift:hover img,
+      .atom-lift:focus-within img {
+        transform: translateY(-5px);
+      }
+
+      .atom-sheen img {
+        animation: smallSheen 2200ms cubic-bezier(0.16, 1, 0.3, 1) infinite;
+      }
+
+      @keyframes pulse {
+        0%, 100% { transform: scale(1); opacity: 0.9; }
+        50% { transform: scale(1.025); opacity: 1; }
+      }
+
+      @keyframes smallSheen {
+        0%, 100% { filter: drop-shadow(0 0 0 rgba(126, 232, 255, 0)); }
+        48% { filter: drop-shadow(0 0 12px rgba(126, 232, 255, 0.7)); }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <div id="logo-root">
+        <object id="logo-motion" type="image/svg+xml" data="../assets/title-logo-motion.svg" aria-label="学園ブレード"></object>
+      </div>
+      <div class="controls">
+        <button id="replay" type="button">Replay</button>
+        <button id="slow" type="button" aria-pressed="false">Slow</button>
+        <label>Speed <input id="speed" type="range" min="0.25" max="1.5" value="1" step="0.05"></label>
+      </div>
+      <div class="principles" aria-label="principles">
+        <span class="pill">Staging</span>
+        <span class="pill">Anticipation</span>
+        <span class="pill">Slow In/Out</span>
+        <span class="pill">Follow Through</span>
+        <span class="pill">Appeal</span>
+      </div>
+      <div class="atoms">
+        <button class="atom atom-pulse" type="button"><img src="../assets/title-logo-static.svg" alt=""></button>
+        <button class="atom atom-lift" type="button"><img src="../assets/title-logo-static.svg" alt=""></button>
+        <button class="atom atom-sheen" type="button"><img src="../assets/title-logo-static.svg" alt=""></button>
+      </div>
+    </main>
+    <script>
+      const logo = document.getElementById("logo-motion");
+      const replay = document.getElementById("replay");
+      const slow = document.getElementById("slow");
+      const speed = document.getElementById("speed");
+      const params = new URLSearchParams(location.search);
+
+      function motionDocument() {
+        return logo.contentDocument;
+      }
+
+      function applySpeed() {
+        const doc = motionDocument();
+        if (!doc) return;
+        doc.documentElement.style.setProperty("--p2m-duration", `${1500 / Number(speed.value)}ms`);
+      }
+
+      function reloadLogo() {
+        const current = logo.data.split("?")[0];
+        logo.data = `${current}?r=${Date.now()}`;
+      }
+
+      function setPlaybackRate(rate) {
+        speed.value = String(rate);
+        applySpeed();
+      }
+
+      replay.addEventListener("click", reloadLogo);
+      slow.addEventListener("click", () => {
+        const next = slow.getAttribute("aria-pressed") !== "true";
+        slow.setAttribute("aria-pressed", String(next));
+        setPlaybackRate(next ? 0.35 : 1);
+        reloadLogo();
+      });
+      speed.addEventListener("input", () => setPlaybackRate(Number(speed.value)));
+      logo.addEventListener("load", applySpeed);
+
+      if (params.has("static")) {
+        logo.data = "../assets/title-logo-static.svg";
+      }
+
+      window.__p2mReady = true;
+    </script>
+  </body>
+</html>
