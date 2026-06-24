@@ -16,6 +16,11 @@ window.YOKOSHOOT_CONFIG = {
     hitInvincibleSeconds: 1.4,
     fireRatePerSecond: 6,
     knifeSpeed: 640,
+    wakizashiSpeed: 560,
+    wakizashiCooldownSeconds: 3,
+    tachiOrbitSeconds: 2,
+    tachiOrbitRadius: 54,
+    tachiDashSpeed: 620,
     aimAngleDegrees: 25.714,
     upAimChainSeconds: 0.3,
     upAimAcquireAngleDegrees: 50,
@@ -34,6 +39,7 @@ window.YOKOSHOOT_CONFIG = {
 
   score: {
     enemyDefeat: 100,
+    humanoidFullLifeDefeat: 1000,
   },
 
   stages: {

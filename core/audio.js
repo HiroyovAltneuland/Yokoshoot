@@ -5,6 +5,7 @@
   const SOUND_VOLUME_DEFAULTS = {
     master: 1,
     knife: 1,
+    weaponUpgrade: 1,
     enemyReturn: 1,
     bossSmash: 1,
     robotSpin: 1,
@@ -70,6 +71,9 @@
         playNoiseHit(audio, 0.11, 0.08, "highpass", 1800, scaleSoundVolume(kind, 0.13));
         playToneSweep(audio, 0.12, 340, 1260, scaleSoundVolume(kind, 0.06), "triangle");
         windowRef.setTimeout(() => playNoiseHit(audio, 0.06, 0.035, "bandpass", 3600, scaleSoundVolume(kind, 0.055)), 36);
+      } else if (kind === "weaponUpgrade") {
+        playNoiseHit(audio, 0.14, 0.08, "highpass", 2500, scaleSoundVolume(kind, 0.12));
+        playToneSweep(audio, 0.22, 720, 1880, scaleSoundVolume(kind, 0.08), "triangle");
       } else if (kind === "bossSmash") {
         playNoiseHit(audio, 0.16, 0.12, "bandpass", 720, scaleSoundVolume(kind, 0.2));
         playToneSweep(audio, 0.14, 170, 86, scaleSoundVolume(kind, 0.11), "sine");

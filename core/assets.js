@@ -13,6 +13,8 @@
     stageOneBackground: "assets/stage1-background-concept.png",
     stageTwoBackground: "assets/stage2-background-concept.png",
     lifeScarfIcon: "assets/hud-life-scarf.png",
+    wakizashiSprite: "assets/wakizashi-sprite.png",
+    tachiSprite: "assets/tachi-sprite.png",
   };
 
   function loadImage(src) {

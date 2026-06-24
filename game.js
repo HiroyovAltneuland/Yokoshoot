@@ -60,6 +60,11 @@
   let bulletPatterns = null;
   const PLAYER_FIRE_INTERVAL = 1 / CONFIG.player.fireRatePerSecond;
   const PLAYER_KNIFE_SPEED = CONFIG.player.knifeSpeed;
+  const PLAYER_WAKIZASHI_SPEED = CONFIG.player.wakizashiSpeed;
+  const PLAYER_WAKIZASHI_COOLDOWN_SECONDS = CONFIG.player.wakizashiCooldownSeconds;
+  const PLAYER_TACHI_ORBIT_SECONDS = CONFIG.player.tachiOrbitSeconds;
+  const PLAYER_TACHI_ORBIT_RADIUS = CONFIG.player.tachiOrbitRadius;
+  const PLAYER_TACHI_DASH_SPEED = CONFIG.player.tachiDashSpeed;
   const PLAYER_AIM_ANGLE = (CONFIG.player.aimAngleDegrees * Math.PI) / 180;
   const PLAYER_UP_AIM_CHAIN_SECONDS = CONFIG.player.upAimChainSeconds;
   const PLAYER_UP_AIM_ACQUIRE_ANGLE = (CONFIG.player.upAimAcquireAngleDegrees * Math.PI) / 180;
@@ -138,6 +143,7 @@
   const BOSS_CENTER_Y = Math.round((BOSS_MIN_Y + BOSS_MAX_Y) / 2);
   const BOSS_MOVE_AMPLITUDE = Math.round((BOSS_MAX_Y - BOSS_MIN_Y) / 2);
   const HUMANOID_ENEMY_TYPES = new Set(["twintail", "visorGlasses", "glassesEnforcer", "yankeeEnforcer"]);
+  const MECHA_ENEMY_TYPES = new Set(["robotB", "droneA", "droneB", "cleaningRobot", "barrageRobot", "disciplineRobot"]);
   const PLAYER_SPRITE_ROWS_BY_STATE = {
     forward: 0,
     backward: 1,
@@ -209,6 +215,8 @@
     stageOneBackground,
     stageTwoBackground,
     lifeScarfIcon,
+    wakizashiSprite,
+    tachiSprite,
   } = window.YOKOSHOOT_ASSETS.createImages();
   const BACKGROUND_STOPS = {
     wave1Start: 0,
@@ -250,6 +258,7 @@
     waveSpawnCounts: { wave1: 0, wave2: 0 },
     player: makePlayer(),
     knives: [],
+    tachiProjectile: null,
     enemies: [],
     pendingEnemySpawns: [],
     enemyBullets: [],
@@ -320,6 +329,11 @@
       dashVector: { x: 1, y: 0 },
       dashHits: new Set(),
       trail: [],
+      mechDefeats: 0,
+      weaponLevel: 0,
+      wakizashiCooldown: 0,
+      dashCooldownMultiplier: 1,
+      tachiOrbitTime: 0,
       moveX: 0,
       moveY: 0,
     };
@@ -342,6 +356,7 @@
     state.player = makePlayer();
     state.player.invincible = 1.5;
     state.knives = [];
+    state.tachiProjectile = null;
     state.enemies = [];
     state.pendingEnemySpawns = [];
     state.enemyBullets = [];
@@ -522,6 +537,28 @@
       homingTime: angle < 0 && target ? PLAYER_UP_AIM_HOMING_SECONDS : 0,
       r: 6,
     });
+    shootWakizashi();
+  }
+
+  function shootWakizashi() {
+    const player = state.player;
+    if (player.weaponLevel < 1 || player.wakizashiCooldown > 0) return;
+    const target = findNearestTarget(getKnifeSpawnPoint());
+    if (!target) return;
+    const origin = getKnifeSpawnPoint();
+    const angle = angleToTarget(origin, target);
+    state.knives.push({
+      x: origin.x,
+      y: origin.y,
+      vx: Math.cos(angle) * PLAYER_WAKIZASHI_SPEED,
+      vy: Math.sin(angle) * PLAYER_WAKIZASHI_SPEED,
+      r: 8,
+      kind: "wakizashi",
+      bouncesRemaining: 1,
+      trail: [],
+    });
+    player.wakizashiCooldown = PLAYER_WAKIZASHI_COOLDOWN_SECONDS;
+    playShotSound("swordWave");
   }
 
   function getPlayerAimAngle(target = null) {
@@ -579,6 +616,21 @@
     return closestTarget;
   }
 
+  function findNearestTarget(origin) {
+    let closestTarget = null;
+    let closestDistance = Infinity;
+    const targets = state.boss ? [...state.enemies, state.boss] : state.enemies;
+    for (const target of targets) {
+      if (target.dead) continue;
+      const targetDistance = distance(origin, target);
+      if (targetDistance < closestDistance) {
+        closestTarget = target;
+        closestDistance = targetDistance;
+      }
+    }
+    return closestTarget;
+  }
+
   function angleToTarget(origin, target) {
     return Math.atan2(target.y - origin.y, target.x - origin.x);
   }
@@ -607,6 +659,7 @@
       hp: gameplay.hp,
       fireTimer: getEnemyFirstShotTimer(gameplay),
       type: enemyType,
+      attribute: enemyAttributeForType(enemyType),
       wave: state.phase,
       spawnIndex,
       usedSpecial: false,
@@ -639,6 +692,7 @@
       hp: gameplay.hp,
       fireTimer: getEnemyFirstShotTimer(gameplay),
       type: enemyType,
+      attribute: enemyAttributeForType(enemyType),
       wave: state.phase,
       spawnIndex,
       usedSpecial: false,
@@ -663,6 +717,7 @@
       hp: gameplay.hp,
       fireTimer: 0.75,
       type,
+      attribute: enemyAttributeForType(type),
       wave: "midBossReinforcement",
       spawnIndex: 1,
       usedSpecial: false,
@@ -698,6 +753,10 @@
 
   function isHumanoidEnemyType(type) {
     return HUMANOID_ENEMY_TYPES.has(type);
+  }
+
+  function enemyAttributeForType(type) {
+    return HUMANOID_ENEMY_TYPES.has(type) ? "humanoid" : "mecha";
   }
 
   function clampHumanoidY(y) {
@@ -887,10 +946,13 @@
     state.player.throwTime = Math.max(0, state.player.throwTime - dt);
     state.player.upAimChain = Math.max(0, state.player.upAimChain - dt);
     state.player.dashCooldown = Math.max(0, state.player.dashCooldown - dt);
+    state.player.wakizashiCooldown = Math.max(0, state.player.wakizashiCooldown - dt);
+    state.player.tachiOrbitTime += dt;
 
     updateForegroundScrollState();
     updatePlayer(dt);
     updatePhase(dt);
+    updateTachi(dt);
     updateKnives(dt);
     updatePendingEnemySpawns(dt);
     updateEnemies(dt);
@@ -978,6 +1040,22 @@
     state.player.invincible = 999;
     state.player.dashCooldown = 0;
     state.knives = [];
+    launchTachi();
+  }
+
+  function launchTachi() {
+    if (state.player.weaponLevel < 2) return;
+    const angle = getPlayerAimAngle();
+    state.tachiProjectile = {
+      x: state.player.x + 26,
+      y: state.player.y - 12,
+      vx: Math.cos(angle) * PLAYER_TACHI_DASH_SPEED,
+      vy: Math.sin(angle) * PLAYER_TACHI_DASH_SPEED,
+      r: 12,
+      bouncesRemaining: 3,
+      hitTargets: new Set(),
+    };
+    playShotSound("swordWave");
   }
 
   function updateDash(dt) {
@@ -1001,9 +1079,10 @@
         player.x = player.dashOrigin.x;
         player.y = player.dashOrigin.y;
         player.dashState = "none";
-        player.dashCooldown = DASH_COOLDOWN_SECONDS;
+        player.dashCooldown = DASH_COOLDOWN_SECONDS * player.dashCooldownMultiplier;
         player.invincible = 0.35;
         player.trail = [];
+        state.tachiProjectile = null;
         return;
       }
       player.x += (dx / len) * DASH_RETURN_SPEED * dt;
@@ -1060,14 +1139,23 @@
   function updateKnives(dt) {
     for (const knife of state.knives) {
       updateHomingKnife(knife, dt);
+      updateWakizashiTrail(knife, dt);
       knife.x += knife.vx * dt;
       knife.y += knife.vy * dt;
+      bounceBladeAtScreenEdge(knife);
     }
     state.knives = state.knives.filter((knife) => (
-      knife.x < WIDTH + 32 && knife.y > -32 && knife.y < HEIGHT + 32
+      !knife.dead && knife.x < WIDTH + 32 && knife.y > -32 && knife.y < HEIGHT + 32
     ));
   }
 
+  function updateWakizashiTrail(knife, dt) {
+    if (knife.kind !== "wakizashi") return;
+    knife.trail.push({ x: knife.x, y: knife.y, life: 0.18 });
+    for (const point of knife.trail) point.life -= dt;
+    knife.trail = knife.trail.filter((point) => point.life > 0);
+    if (knife.trail.length > 10) knife.trail.shift();
+  }
   function updateEnemies(dt) {
     for (const enemy of state.enemies) {
       if (enemy.type === "cleaningRobot" && enemy.chargeState === "windup") {
@@ -1093,6 +1181,31 @@
       }
     }
     state.enemies = state.enemies.filter((enemy) => enemy.x > -40 && enemy.x < WIDTH + 50);
+  }
+
+  function updateTachi(dt) {
+    const tachi = state.tachiProjectile;
+    if (!tachi) return;
+    tachi.x += tachi.vx * dt;
+    tachi.y += tachi.vy * dt;
+    bounceBladeAtScreenEdge(tachi);
+    if (tachi.dead) state.tachiProjectile = null;
+  }
+
+  function bounceBladeAtScreenEdge(blade) {
+    const outOfBounds = blade.x < 0 || blade.x > WIDTH || blade.y < 0 || blade.y > HEIGHT;
+    if (!outOfBounds) return;
+    if (blade.bouncesRemaining === undefined) return;
+    if (!blade.bouncesRemaining) {
+      blade.dead = true;
+      return;
+    }
+    if (blade.x < 0 || blade.x > WIDTH) blade.vx *= -1;
+    if (blade.y < 0 || blade.y > HEIGHT) blade.vy *= -1;
+    blade.x = clamp(blade.x, 0, WIDTH);
+    blade.y = clamp(blade.y, 0, HEIGHT);
+    blade.bouncesRemaining -= 1;
+    playShotSound("swordWave");
   }
 
   function updatePendingEnemySpawns(dt) {
@@ -1227,6 +1340,7 @@
 
   function checkCollisions() {
     checkDashCollisions();
+    checkTachiCollisions();
 
     for (const knife of state.knives) {
       for (const enemy of state.enemies) {
@@ -1255,7 +1369,7 @@
       }
       for (const enemy of state.enemies) {
         if (distance(enemy, hurtPoint) < enemy.r + PLAYER_HURT_RADIUS) {
-          enemy.dead = true;
+          defeatEnemy(enemy);
           damagePlayer();
           break;
         }
@@ -1278,9 +1392,7 @@
       if (state.player.dashHits.has(`enemy-${enemy.id}`)) continue;
       if (distance(state.player, enemy) < PLAYER_RADIUS + enemy.r) {
         state.player.dashHits.add(`enemy-${enemy.id}`);
-        enemy.dead = true;
-        state.score += CONFIG.score.enemyDefeat;
-        burst(enemy.x, enemy.y, "#7ee8ff", 16);
+        defeatEnemy(enemy, "#7ee8ff", 16);
       }
     }
     if (state.boss && !state.player.dashHits.has("boss") && distance(state.player, state.boss) < PLAYER_RADIUS + state.boss.r) {
@@ -1360,6 +1472,39 @@
     scheduleReinforcementEnemy("glassesEnforcer", HEIGHT * 0.72, STAGE_TWO_REINFORCEMENT_CHASE_DELAY_SECONDS);
   }
 
+  function checkTachiCollisions() {
+    const blade = state.tachiProjectile || getOrbitingTachi();
+    if (!blade) return;
+    for (const ball of state.enemyBullets) {
+      if (distance(blade, ball) < blade.r + ball.r) {
+        ball.dead = true;
+        burst(ball.x, ball.y, "#7ee8ff", 4);
+      }
+    }
+    if (!state.tachiProjectile) return;
+    for (const enemy of state.enemies) {
+      if (blade.hitTargets.has(`enemy-${enemy.id}`)) continue;
+      if (distance(blade, enemy) < blade.r + enemy.r) {
+        blade.hitTargets.add(`enemy-${enemy.id}`);
+        damageEnemy(enemy, 2);
+      }
+    }
+    if (state.boss && !blade.hitTargets.has("boss") && distance(blade, state.boss) < blade.r + state.boss.r) {
+      blade.hitTargets.add("boss");
+      damageBoss(2, blade.x, blade.y, "#7ee8ff", 12);
+    }
+  }
+
+  function getOrbitingTachi() {
+    if (state.player.weaponLevel < 2 || state.player.dashState !== "none") return null;
+    const angle = (state.player.tachiOrbitTime / PLAYER_TACHI_ORBIT_SECONDS) * Math.PI * 2;
+    return {
+      x: state.player.x + Math.cos(angle) * PLAYER_TACHI_ORBIT_RADIUS,
+      y: state.player.y + PLAYER_WAIST_OFFSET_Y + Math.sin(angle) * PLAYER_TACHI_ORBIT_RADIUS,
+      r: 12,
+    };
+  }
+
   function stageTwoBossShoot(boss, dt) {
     boss.fireTimer -= dt;
     boss.moveTimer += dt;
@@ -1390,8 +1535,47 @@
     enemy.hp = (enemy.hp || 1) - amount;
     burst(enemy.x, enemy.y, "#f8d84a");
     if (enemy.hp > 0) return;
+    defeatEnemy(enemy);
+  }
+
+  function defeatEnemy(enemy, color = "#f8d84a", count = 10) {
+    if (enemy.dead) return;
     enemy.dead = true;
     state.score += CONFIG.score.enemyDefeat;
+    burst(enemy.x, enemy.y, color, count);
+    if (isMechaEnemy(enemy)) {
+      state.player.mechDefeats += 1;
+      const nextLevel = Math.min(2, Math.floor(state.player.mechDefeats / 8));
+      if (nextLevel > state.player.weaponLevel) {
+        state.player.weaponLevel = nextLevel;
+        state.message = nextLevel === 1 ? "WAKIZASHI EQUIPPED" : "TACHI EQUIPPED";
+        playShotSound("weaponUpgrade");
+      }
+      return;
+    }
+    if (isHumanoidEnemy(enemy)) rewardHumanoidDefeat();
+  }
+
+  function isMechaEnemy(enemy) {
+    return enemy.attribute === "mecha" || MECHA_ENEMY_TYPES.has(enemy.type);
+  }
+
+  function isHumanoidEnemy(enemy) {
+    return enemy.attribute === "humanoid" || HUMANOID_ENEMY_TYPES.has(enemy.type);
+  }
+
+  function rewardHumanoidDefeat() {
+    const player = state.player;
+    player.dashCooldownMultiplier *= 0.95;
+    player.dashCooldown *= 0.95;
+    if (player.life < PLAYER_MAX_LIFE) {
+      const previousLife = player.life;
+      player.life = Math.min(PLAYER_MAX_LIFE, player.life + 0.5);
+      player.lifeReveal = { index: Math.floor(previousLife), remaining: LIFE_WIPE_SECONDS };
+      playLifeRecoverySound();
+    } else {
+      state.score += CONFIG.score.humanoidFullLifeDefeat;
+    }
   }
 
   function updateSayoAttack(boss, dt) {
@@ -1662,9 +1846,10 @@
     const hitX = state.player.x;
     const hitY = state.player.y;
     playVoiceLine("くぅっ", "cool");
+    const lostLifeIndex = Math.ceil(state.player.life) - 1;
     state.player.life -= 1;
     state.player.lifeWipe = {
-      index: state.player.life,
+      index: lostLifeIndex,
       remaining: LIFE_WIPE_SECONDS,
     };
     state.player.invincible = CONFIG.player.hitInvincibleSeconds;
@@ -1698,6 +1883,7 @@
     drawHud();
     drawDashTrail();
     drawPlayer();
+    drawTachi();
     drawKnives();
     drawEnemies();
     drawSayoDashTelegraph();
@@ -1976,11 +2162,12 @@
     for (let index = 0; index < PLAYER_MAX_LIFE; index += 1) {
       const iconX = x + 48 + index * 38;
       drawScarfLifeIcon(iconX, y + 2, "slot");
-      if (index < state.player.life) {
+      const fillRatio = clamp(state.player.life - index, 0, 1);
+      if (fillRatio > 0) {
         const reveal = state.player.lifeReveal && state.player.lifeReveal.index === index
           ? 1 - state.player.lifeReveal.remaining / LIFE_WIPE_SECONDS
-          : 1;
-        drawClippedScarfLifeIcon(iconX, y + 2, reveal);
+          : fillRatio;
+        drawClippedScarfLifeIcon(iconX, y + 2, Math.min(fillRatio, reveal));
       } else if (state.player.lifeWipe && state.player.lifeWipe.index === index) {
         drawClippedScarfLifeIcon(iconX, y + 2, state.player.lifeWipe.remaining / LIFE_WIPE_SECONDS);
       }
@@ -2147,11 +2334,17 @@
 
   function drawKnives() {
     for (const knife of state.knives) {
+      drawWakizashiTrail(knife);
       ctx.save();
       ctx.translate(knife.x, knife.y);
       ctx.rotate(Math.atan2(knife.vy, knife.vx));
-      ctx.fillStyle = "#eef5ff";
-      pixelRect(-8, -3, 22, 6);
+
+      if (knife.kind === "wakizashi" && drawBladeSprite(wakizashiSprite, 82, 12)) {
+        ctx.restore();
+        continue;
+      }
+      ctx.fillStyle = knife.kind === "wakizashi" ? "#f8d84a" : "#eef5ff";
+      pixelRect(-8, -3, knife.kind === "wakizashi" ? 38 : 22, 6);
       ctx.fillStyle = "#a9c5df";
       pixelRect(10, -1, 6, 2);
       ctx.fillStyle = "#343847";
@@ -2160,6 +2353,31 @@
     }
   }
 
+  function drawWakizashiTrail(knife) {
+    if (knife.kind !== "wakizashi" || knife.trail.length < 2) return;
+    const points = [...knife.trail, { x: knife.x, y: knife.y, life: 0.18 }];
+    for (let index = 1; index < points.length; index += 1) {
+      const start = points[index - 1];
+      const end = points[index];
+      const alpha = Math.min(start.life, end.life) / 0.18;
+      ctx.save();
+      ctx.globalAlpha = alpha * 0.72;
+      ctx.strokeStyle = "#7ee8ff";
+      ctx.lineWidth = 5;
+      ctx.beginPath();
+      ctx.moveTo(start.x, start.y);
+      ctx.lineTo(end.x, end.y);
+      ctx.stroke();
+      ctx.globalAlpha = alpha;
+      ctx.strokeStyle = "#eef5ff";
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(start.x, start.y);
+      ctx.lineTo(end.x, end.y);
+      ctx.stroke();
+      ctx.restore();
+    }
+  }
   function drawEnemies() {
     for (const enemy of state.enemies) {
       ctx.save();
@@ -2282,6 +2500,30 @@
     return true;
   }
 
+  function drawTachi() {
+    const tachi = state.tachiProjectile || getOrbitingTachi();
+    if (!tachi) return;
+    ctx.save();
+    ctx.translate(tachi.x, tachi.y);
+    ctx.rotate(state.tachiProjectile ? Math.atan2(tachi.vy, tachi.vx) : state.player.tachiOrbitTime * Math.PI * 2 / PLAYER_TACHI_ORBIT_SECONDS + Math.PI / 2);
+    if (drawBladeSprite(tachiSprite, 138, 12)) {
+      ctx.restore();
+      return;
+    }
+    ctx.fillStyle = "#eef5ff";
+    pixelRect(-28, -4, 56, 8);
+    ctx.fillStyle = "#f8d84a";
+    pixelRect(18, -2, 12, 4);
+    ctx.fillStyle = "#343847";
+    pixelRect(-38, -3, 12, 6);
+    ctx.restore();
+  }
+
+  function drawBladeSprite(sprite, width, height) {
+    if (!sprite.complete || sprite.naturalWidth === 0) return false;
+    ctx.drawImage(sprite, -width / 2, -height / 2, width, height);
+    return true;
+  }
   function drawStageTwoGlassesEnforcerRunSprite(config) {
     if (
       !stageTwoGlassesEnforcerRun6Sprite.complete ||
