@@ -222,6 +222,8 @@ h1 img {
 .mobile-controls {
   grid-area: 1 / 1;
   z-index: 4;
+  --touch-edge-gap: clamp(24px, 4.5vmin, 40px);
+  --touch-bottom-gap: clamp(20px, 4vmin, 36px);
   width: min(100vw, 177.7778vh);
   width: min(100vw, 177.7778dvh);
   height: min(100vh, 56.25vw);
@@ -249,8 +251,8 @@ h1 img {
 }
 
 .move-pad {
-  left: max(16px, env(safe-area-inset-left));
-  bottom: max(16px, env(safe-area-inset-bottom));
+  left: calc(env(safe-area-inset-left, 0px) + var(--touch-edge-gap));
+  bottom: calc(env(safe-area-inset-bottom, 0px) + var(--touch-bottom-gap));
   width: 92px;
   height: 92px;
   border: 2px solid rgba(126, 232, 255, 0.72);
@@ -272,8 +274,8 @@ h1 img {
 }
 
 .attack-button {
-  right: max(20px, env(safe-area-inset-right));
-  bottom: max(20px, env(safe-area-inset-bottom));
+  right: calc(env(safe-area-inset-right, 0px) + var(--touch-edge-gap));
+  bottom: calc(env(safe-area-inset-bottom, 0px) + var(--touch-bottom-gap));
   display: grid;
   width: 90px;
   height: 90px;
@@ -466,6 +468,11 @@ h1 img {
 @media (orientation: landscape) {
   .game-screen.touch-controls-enabled .mobile-controls {
     display: block;
+    position: fixed;
+    inset: 0;
+    width: auto;
+    height: auto;
+    aspect-ratio: auto;
   }
 }
 
