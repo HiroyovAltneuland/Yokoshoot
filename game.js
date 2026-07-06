@@ -17,7 +17,10 @@
   const speakerName = document.getElementById("speaker-name");
   const dialogueLine = document.getElementById("dialogue-line");
   const dialogueNext = document.getElementById("dialogue-next");
-  const enemyPortrait = document.getElementById("enemy-portrait");
+  const leftPortrait = dialogueBox.querySelector(".portrait.protagonist img");
+  const leftPortraitName = dialogueBox.querySelector(".portrait.protagonist span");
+  const rightPortrait = document.getElementById("enemy-portrait");
+  const rightPortraitName = dialogueBox.querySelector(".portrait.rival span");
   const mobileControls = document.getElementById("mobile-controls");
   const movePad = document.getElementById("move-pad");
   const moveThumb = document.getElementById("move-thumb");
@@ -99,6 +102,10 @@
   const BOSS_SPRITE_COLUMNS = 3;
   const BOSS_SPRITE_ROWS = 2;
   const BOSS_SPRITE_DRAW_SIZE = 172;
+  const MASUMI_BOSS_SPRITE_DRAW_SIZE = 184;
+  const SAKUYA_BOSS_SPRITE_COLUMNS = 3;
+  const SAKUYA_BOSS_SPRITE_ROWS = 5;
+  const SAKUYA_BOSS_SPRITE_DRAW_SIZE = 232;
   const RITSUKO_BOSS_SPRITE_DRAW_WIDTH = Math.round(BOSS_SPRITE_DRAW_SIZE * (576 / 512));
   const BOSS_SPRITE_FOOT_OFFSET_Y = Math.round(BOSS_SPRITE_DRAW_SIZE * 0.44);
   const ENEMY_SPRITE_COLUMNS = 3;
@@ -208,12 +215,17 @@
     tsubameBossSprite,
     ritsukoBossSprite,
     sayoBossSprite,
+    masumiBossSprite,
+    sakuyaBossSprite,
     stageOneEnemySprite,
     stageTwoEnemySprite,
     stageTwoReinforcementSprite,
     stageTwoGlassesEnforcerRun6Sprite,
     stageOneBackground,
     stageTwoBackground,
+    stageThreeCorridorBackground,
+    stageThreeDoorBackground,
+    stageThreeHallBackground,
     lifeScarfIcon,
     wakizashiSprite,
     tachiSprite,
@@ -242,6 +254,7 @@
 
   const phasePlan = makeStagePlan(CONFIG.stages[1]);
   const STAGE_TWO_PLAN = makeStagePlan(CONFIG.stages[2]);
+  const STAGE_THREE_PLAN = makeStagePlan(CONFIG.stages[3]);
 
   const state = {
     mode: "title",
@@ -376,12 +389,16 @@
     titleScreen.hidden = true;
     gameScreen.hidden = false;
     dialogueBox.hidden = true;
-    if (phase === "midBossDialogue") {
+    if (!options.phase && hasDialogue("prologue")) {
+      startDialogue("prologue", "stageStart");
+    } else if (phase === "midBossDialogue") {
       startDialogue("midBoss", "midBoss");
     } else if (phase === "bossDialogue") {
       startDialogue("boss", "boss");
     } else if (phase === "bossDefeatedDialogue") {
       startBossDefeatedDialogue();
+    } else if (phase === "wave1" && hasStageStartDialogue()) {
+      startDialogue("stageStart", "wave1");
     } else {
       setPhase(phase);
     }
@@ -389,29 +406,41 @@
   }
 
   function startDialogue(kind, nextPhase) {
+    clearDialoguePortraits();
     state.mode = "dialogue";
     const dialogueKey = getDialogueKey(kind);
-    const bossPortrait = kind === "boss" || kind === "bossDefeated";
-    const portraitSrc = state.stage === 2
-      ? kind === "midBoss"
-        ? "assets/dialogue-ritsuko-midboss.png"
-        : kind === "bossDefeated"
-          ? "assets/dialogue-sayo-defeated.png"
-          : "assets/dialogue-sayo-boss.png"
-      : kind === "bossDefeated"
-        ? "assets/dialogue-tsubame-defeated.png"
-        : bossPortrait ? "assets/dialogue-tsubame-boss.png" : "assets/dialogue-tsubame-midboss.png";
-    const portraitAlt = state.stage === 2 ? (bossPortrait ? "一文字 小夜" : "鬼塚 律子") : "朝比奈 つばめ";
-    setEnemyPortrait(portraitSrc, portraitAlt);
+    const dialogueEntries = dialogues[dialogueKey] || [];
+    applyDialogueInitialPortraits(dialogueEntries);
     state.dialogueAutoSeconds = kind === "midBoss" ? MID_BOSS_DIALOGUE_AUTO_SECONDS : DIALOGUE_AUTO_SECONDS;
-    state.dialogue = dialogues[dialogueKey].map((entry) => ({ ...entry, nextPhase }));
+    state.dialogue = dialogueEntries
+      .filter((entry) => !isDialogueInitialPortraitEntry(entry))
+      .map((entry) => ({ ...entry, nextPhase }));
     state.dialogueIndex = 0;
     state.dialogueTimer = 0;
+    if (state.dialogue.length === 0) {
+      dialogueBox.hidden = true;
+      clearDialoguePortraits();
+      state.mode = "playing";
+      if (nextPhase === "stageStart") {
+        startDialogue("stageStart", "wave1");
+      } else if (nextPhase === "nextStage" || nextPhase === "gameClear") {
+        startLifeRecovery(nextPhase);
+      } else {
+        setPhase(nextPhase);
+      }
+      return;
+    }
     showDialogueLine();
   }
 
   function getDialogueKey(kind) {
+    if (kind === "prologue") return "prologue";
+    if (kind === "stageStart") return `stage${state.stage}Start`;
     if (kind === "bossDefeated" && state.stage >= FINAL_STAGE) return "finalBossDefeated";
+    if (state.stage === 3) {
+      if (kind === "bossDefeated") return "finalBossDefeated";
+      return `stage3${kind === "boss" ? "Boss" : "MidBoss"}`;
+    }
     if (state.stage === 2) {
       if (kind === "bossDefeated") return "stage2BossDefeated";
       return `stage2${kind === "boss" ? "Boss" : "MidBoss"}`;
@@ -419,21 +448,68 @@
     return kind;
   }
 
-  function setEnemyPortrait(src, alt) {
-    enemyPortrait.alt = alt;
-    if (enemyPortrait.dataset.currentSrc === src) {
-      enemyPortrait.style.opacity = "1";
-      return;
-    }
-    enemyPortrait.dataset.currentSrc = src;
-    enemyPortrait.style.opacity = "0";
-    enemyPortrait.onload = () => {
-      enemyPortrait.style.opacity = "1";
-    };
-    enemyPortrait.src = src;
-    if (enemyPortrait.complete && enemyPortrait.naturalWidth > 0) enemyPortrait.style.opacity = "1";
+  function hasDialogue(key) {
+    return Array.isArray(dialogues[key]) && dialogues[key].length > 0;
   }
 
+  function hasStageStartDialogue() {
+    return hasDialogue(`stage${state.stage}Start`);
+  }
+
+  function applyDialogueInitialPortraits(dialogueEntries) {
+    for (const entry of dialogueEntries) {
+      const side = getDialogueInitialPortraitSide(entry);
+      if (!side) continue;
+      setDialoguePortrait(side, entry.portrait, entry.speaker || "");
+    }
+  }
+
+  function isDialogueInitialPortraitEntry(entry) {
+    return Boolean(getDialogueInitialPortraitSide(entry));
+  }
+
+  function getDialogueInitialPortraitSide(entry) {
+    const side = entry && (entry.dialogueInitialPortraits || entry.dialogueInitialPortrait);
+    return side === "left" || side === "right" ? side : null;
+  }
+  function getDialogueEntryPortrait(entry) {
+    return {
+      side: entry.side === "right" ? "right" : "left",
+      src: entry.portrait || "assets/dialogue-rin.png",
+      alt: entry.speaker || "",
+    };
+  }
+
+  function clearDialoguePortraits() {
+    clearDialoguePortrait(leftPortrait, leftPortraitName);
+    clearDialoguePortrait(rightPortrait, rightPortraitName);
+  }
+
+  function clearDialoguePortrait(portrait, portraitName) {
+    if (!portrait) return;
+    portrait.onload = null;
+    portrait.style.opacity = "0";
+    portrait.alt = "";
+    if (portraitName) portraitName.textContent = "";
+  }
+  function setDialoguePortrait(side, src, alt) {
+    const portrait = side === "right" ? rightPortrait : leftPortrait;
+    const portraitName = side === "right" ? rightPortraitName : leftPortraitName;
+    if (!portrait) return;
+    portrait.alt = alt;
+    if (portraitName) portraitName.textContent = alt;
+    if (portrait.dataset.currentSrc === src) {
+      portrait.style.opacity = "1";
+      return;
+    }
+    portrait.dataset.currentSrc = src;
+    portrait.style.opacity = "0";
+    portrait.onload = () => {
+      portrait.style.opacity = "1";
+    };
+    portrait.src = src;
+    if (portrait.complete && portrait.naturalWidth > 0) portrait.style.opacity = "1";
+  }
   function startBossDefeatedDialogue() {
     state.knives = [];
     state.enemies = [];
@@ -448,6 +524,8 @@
     const entry = state.dialogue[state.dialogueIndex];
     dialogueBox.hidden = false;
     dialogueNext.hidden = true;
+    const portrait = getDialogueEntryPortrait(entry);
+    setDialoguePortrait(portrait.side, portrait.src, portrait.alt);
     speakerName.textContent = entry.speaker;
     dialogueLine.textContent = entry.line;
   }
@@ -460,7 +538,12 @@
     }
     const nextPhase = state.dialogue[state.dialogue.length - 1].nextPhase;
     dialogueBox.hidden = true;
+    clearDialoguePortraits();
     state.mode = "playing";
+    if (nextPhase === "stageStart") {
+      startDialogue("stageStart", "wave1");
+      return;
+    }
     if (nextPhase === "nextStage" || nextPhase === "gameClear") {
       startLifeRecovery(nextPhase);
       return;
@@ -480,9 +563,11 @@
   function setPhase(phase) {
     state.phase = phase;
     state.phaseTime = 0;
-    state.knives = [];
+    state.boss = null;
+    state.message = "";
     state.enemies = [];
     state.enemyBullets = [];
+    state.pendingEnemySpawns = [];
     state.spawnTimer = 0.25;
     state.waitingForMidBossReinforcementsClear = false;
     state.foregroundScrollPosition = null;
@@ -492,15 +577,19 @@
       setStageTwoPhase(phase);
       return;
     }
+    if (state.stage === 3) {
+      setStageThreePhase(phase);
+      return;
+    }
     if (phase === "midBoss") {
-      state.boss = makeBoss("朝比奈 つばめ", phasePlan.midBossTarget, 0);
-      state.message = "中ボス 朝比奈つばめ";
+      state.boss = makeBoss("\u671d\u6bd4\u5948 \u3064\u3070\u3081", phasePlan.midBossTarget, 0);
+      state.message = "\u4e2d\u30dc\u30b9 \u671d\u6bd4\u5948\u3064\u3070\u3081";
     } else if (phase === "boss") {
-      state.boss = makeBoss("朝比奈 つばめ", phasePlan.bossDefeatTarget, 1);
-      state.message = "ボス 朝比奈つばめ";
+      state.boss = makeBoss("\u671d\u6bd4\u5948 \u3064\u3070\u3081", phasePlan.bossDefeatTarget, 1);
+      state.message = "\u30dc\u30b9 \u671d\u6bd4\u5948\u3064\u3070\u3081";
     } else {
       state.boss = null;
-      state.message = phase === "wave2" ? "テニス部 第二陣" : "";
+      state.message = phase === "wave2" ? "\u30c6\u30cb\u30b9\u90e8 \u7b2c\u4e8c\u9663" : "";
     }
   }
 
@@ -572,19 +661,34 @@
 
   function setStageTwoPhase(phase) {
     if (phase === "midBoss") {
-      state.boss = makeBoss("鬼塚 律子", STAGE_TWO_PLAN.midBossTarget, 2);
-      state.message = "中ボス 鬼塚律子";
+      state.boss = makeBoss("\u9b3c\u585a \u5f8b\u5b50", STAGE_TWO_PLAN.midBossTarget, 2);
+      state.message = "\u4e2d\u30dc\u30b9 \u9b3c\u585a\u5f8b\u5b50";
     } else if (phase === "boss") {
-      state.boss = makeBoss("一文字 小夜", STAGE_TWO_PLAN.bossDefeatTarget, 3);
+      state.boss = makeBoss("\u4e00\u6587\u5b57 \u5c0f\u591c", STAGE_TWO_PLAN.bossDefeatTarget, 3);
       state.boss.dashTimer = CONFIG.bosses.sayo.dashIntervalSeconds;
       state.boss.dashState = "idle";
       state.boss.dashTrace = null;
       state.boss.idleShotTimer = CONFIG.bosses.sayo.idleShotIntervalSeconds;
       state.boss.sayoDashCount = 0;
-      state.message = "ボス 一文字小夜";
+      state.message = "\u30dc\u30b9 \u4e00\u6587\u5b57\u5c0f\u591c";
     } else {
       state.boss = null;
-      state.message = phase === "wave2" ? "風紀ロボ 第二陣" : "お掃除ロボ";
+      state.message = phase === "wave2" ? "\u98a8\u7d00\u30ed\u30dc \u7b2c\u4e8c\u9663" : "\u304a\u6383\u9664\u30ed\u30dc";
+    }
+  }
+
+  function setStageThreePhase(phase) {
+    if (phase === "midBoss") {
+      state.boss = makeBoss("\u5fa1\u9580\u9662 \u771f\u6f84", STAGE_THREE_PLAN.midBossTarget, 0);
+      initializeMasumiBoss(state.boss);
+      state.message = "\u4e2d\u30dc\u30b9 \u5fa1\u9580\u9662\u771f\u6f84";
+    } else if (phase === "boss") {
+      state.boss = makeBoss("\u5fa1\u9580\u9662 \u6714\u591c", STAGE_THREE_PLAN.bossDefeatTarget, 1);
+      initializeSakuyaBoss(state.boss);
+      state.message = "\u30dc\u30b9 \u5fa1\u9580\u9662\u6714\u591c";
+    } else {
+      state.boss = null;
+      state.message = phase === "wave2" ? "\u767d\u4e9c\u306e\u30db\u30fc\u30eb\u3078" : "\u5bae\u6bbf\u56de\u5eca";
     }
   }
 
@@ -885,6 +989,10 @@
       stageTwoBossShoot(boss, dt);
       return;
     }
+    if (state.stage === 3) {
+      stageThreeBossShoot(boss, dt);
+      return;
+    }
     boss.fireTimer -= dt;
     boss.moveTimer += dt;
     boss.y = clampBossY(BOSS_CENTER_Y + Math.sin(boss.moveTimer * 1.9) * BOSS_MOVE_AMPLITUDE);
@@ -916,6 +1024,261 @@
         r: 8,
       });
     }
+  }
+
+
+  function initializeMasumiBoss(boss) {
+    boss.kind = "masumi";
+    boss.r = 42;
+    boss.fragments = makeMasumiFragments(boss);
+    boss.masumiPhase = 1;
+    boss.masumiShotIndex = 0;
+    boss.masumiShotTimer = 0.35;
+    boss.masumiSpinTimer = 0;
+    boss.masumiRushIndex = 0;
+    boss.masumiLaserCycle = 0;
+    boss.laserActive = false;
+  }
+
+  function initializeSakuyaBoss(boss) {
+    boss.kind = "sakuya";
+    boss.r = 62;
+    boss.fireTimer = 0.45;
+    boss.sakuyaPhase = 0;
+    boss.sakuyaSubTimer = 0.6;
+    boss.sakuyaEightWayTimer = 1.0;
+    boss.finalTimer = 0;
+    boss.blackHole = null;
+  }
+
+  function makeMasumiFragments(boss) {
+    return Array.from({ length: 10 }, (_, index) => {
+      const home = getMasumiFragmentHome(boss, index, 0);
+      return { index, x: home.x, y: home.y, r: 10, mode: "home", timer: 0, vx: 0, vy: 0 };
+    });
+  }
+
+  function getMasumiFragmentHome(boss, index, spin) {
+    const angle = spin + index * (Math.PI * 2 / 10);
+    const ringX = 34 + Math.cos(angle) * 38;
+    const ringY = -22 + Math.sin(angle) * 54;
+    return { x: boss.x + ringX, y: boss.y + ringY };
+  }
+
+  function getMasumiHandPoint(boss) {
+    return { x: boss.x - 52, y: boss.y - 24 };
+  }
+
+  function stageThreeBossShoot(boss, dt) {
+    boss.moveTimer += dt;
+    boss.y = clampBossY(BOSS_CENTER_Y + Math.sin(boss.moveTimer * (boss.rank ? 1.35 : 1.7)) * BOSS_MOVE_AMPLITUDE);
+    if (boss.kind === "masumi") {
+      updateMasumiBoss(boss, dt, false);
+      return;
+    }
+    updateSakuyaBoss(boss, dt);
+  }
+
+  function updateMasumiBoss(boss, dt, intense) {
+    const previousPhase = boss.masumiPhase || 1;
+    const hpRatio = boss.hp / boss.maxHp;
+    boss.masumiPhase = hpRatio <= 1 / 3 ? 3 : hpRatio <= 2 / 3 ? 2 : 1;
+    if (boss.masumiPhase !== previousPhase && !intense) {
+      state.message = boss.masumiPhase === 2 ? "\u771f\u6f84 \u7834\u7247\u8ffd\u6483" : "\u771f\u6f84 \u65ad\u754c\u30ec\u30fc\u30b6\u30fc";
+    }
+    if (boss.masumiPhase === 1) updateMasumiStraightPattern(boss, dt, intense);
+    else if (boss.masumiPhase === 2) updateMasumiRushPattern(boss, dt, intense);
+    else updateMasumiLaserPattern(boss, dt, intense);
+    updateMasumiFragments(boss, dt, boss.masumiPhase === 2 ? boss.masumiSpinTimer * (intense ? 7 : 4.4) : state.elapsed * 0.6);
+  }
+
+  function updateMasumiStraightPattern(boss, dt, intense) {
+    boss.laserActive = false;
+    boss.masumiShotTimer -= dt;
+    if (boss.masumiShotTimer > 0) return;
+    boss.masumiShotTimer = intense ? 0.16 : 0.32;
+    const fragment = boss.fragments[boss.masumiShotIndex % boss.fragments.length];
+    boss.masumiShotIndex += 1;
+    launchMasumiFragment(fragment, Math.PI, intense ? 430 : 340, intense ? "rush" : "straight");
+    playShotSound("bossSmash");
+  }
+
+  function updateMasumiRushPattern(boss, dt, intense) {
+    boss.laserActive = false;
+    boss.masumiSpinTimer += dt;
+    const spinSeconds = intense ? 0.55 : 1.15;
+    if (boss.masumiSpinTimer < spinSeconds) return;
+    boss.masumiShotTimer -= dt;
+    if (boss.masumiShotTimer > 0) return;
+    boss.masumiShotTimer = intense ? 0.11 : 0.23;
+    const fragment = boss.fragments[boss.masumiRushIndex % boss.fragments.length];
+    boss.masumiRushIndex += 1;
+    const angle = Math.atan2(playerHurtPoint().y - fragment.y, playerHurtPoint().x - fragment.x);
+    launchMasumiFragment(fragment, angle, intense ? 500 : 390, "rush");
+    playShotSound("bossSmash");
+    if (boss.masumiRushIndex % boss.fragments.length === 0) boss.masumiSpinTimer = 0;
+  }
+
+  function updateMasumiLaserPattern(boss, dt, intense) {
+    boss.masumiLaserCycle = (boss.masumiLaserCycle || 0) + dt;
+    const activeSeconds = intense ? 5.6 : 5;
+    const restSeconds = intense ? 2.2 : 3;
+    const cycleSeconds = activeSeconds + restSeconds;
+    if (boss.masumiLaserCycle >= cycleSeconds) boss.masumiLaserCycle -= cycleSeconds;
+    boss.laserActive = boss.masumiLaserCycle < activeSeconds;
+    boss.laserAngle = (boss.masumiLaserCycle / activeSeconds) * Math.PI * 2 * (intense ? 1.35 : 1);
+    boss.laserWidth = intense ? 24 : 18;
+    if (boss.laserActive && !boss.laserSoundGate) {
+      boss.laserSoundGate = true;
+      playShotSound("swordWave");
+    }
+    if (!boss.laserActive) boss.laserSoundGate = false;
+    for (const fragment of boss.fragments) fragment.mode = boss.laserActive ? "gather" : "home";
+  }
+
+  function launchMasumiFragment(fragment, angle, speed, mode) {
+    fragment.mode = mode;
+    fragment.timer = 0;
+    fragment.vx = Math.cos(angle) * speed;
+    fragment.vy = Math.sin(angle) * speed;
+  }
+
+  function updateMasumiFragments(boss, dt, spin) {
+    if (!boss.fragments) return;
+    const hand = getMasumiHandPoint(boss);
+    for (const fragment of boss.fragments) {
+      fragment.timer += dt;
+      const home = getMasumiFragmentHome(boss, fragment.index, spin);
+      if (fragment.mode === "straight" || fragment.mode === "rush") {
+        fragment.x += fragment.vx * dt;
+        fragment.y += fragment.vy * dt;
+        if (fragment.timer > (fragment.mode === "rush" ? 0.95 : 0.75) || fragment.x < 18 || fragment.y < 8 || fragment.y > HEIGHT - 8) {
+          fragment.mode = "return";
+          fragment.timer = 0;
+        }
+      } else if (fragment.mode === "gather") {
+        const offset = (fragment.index - 4.5) * 2.4;
+        fragment.x += (hand.x + offset - fragment.x) * Math.min(1, dt * 8);
+        fragment.y += (hand.y + Math.sin(state.elapsed * 10 + fragment.index) * 7 - fragment.y) * Math.min(1, dt * 8);
+      } else {
+        fragment.x += (home.x - fragment.x) * Math.min(1, dt * (fragment.mode === "return" ? 7 : 4));
+        fragment.y += (home.y - fragment.y) * Math.min(1, dt * (fragment.mode === "return" ? 7 : 4));
+        if (fragment.mode === "return" && distance(fragment, home) < 6) fragment.mode = "home";
+      }
+    }
+  }
+
+  function updateSakuyaBoss(boss, dt) {
+    const nextPhase = getSakuyaPhaseIndex(boss);
+    if (nextPhase !== boss.sakuyaPhase) {
+      boss.sakuyaPhase = nextPhase;
+      boss.fireTimer = 0.2;
+      boss.sakuyaSubTimer = 0.45;
+      state.message = [
+        "\u6714\u591c \u3064\u3070\u3081\u5f37\u5316",
+        "\u6714\u591c \u5f8b\u5b50\u5f37\u5316",
+        "\u6714\u591c \u5c0f\u591c\u5f37\u5316",
+        "\u6714\u591c \u771f\u6f84\u5f37\u5316",
+        "\u30d6\u30e9\u30c3\u30af\u30db\u30fc\u30eb \u8010\u3048\u308d",
+      ][nextPhase];
+    }
+    boss.changed = boss.sakuyaPhase > 0;
+    if (boss.sakuyaPhase === 0) updateSakuyaTsubamePhase(boss, dt);
+    else if (boss.sakuyaPhase === 1) updateSakuyaRitsukoPhase(boss, dt);
+    else if (boss.sakuyaPhase === 2) updateSakuyaSayoPhase(boss, dt);
+    else if (boss.sakuyaPhase === 3) {
+      if (!boss.fragments) boss.fragments = makeMasumiFragments(boss);
+      boss.masumiPhase = 2;
+      updateMasumiRushPattern(boss, dt, true);
+      updateMasumiFragments(boss, dt, state.elapsed * 7);
+    } else {
+      updateSakuyaBlackHolePhase(boss, dt);
+    }
+  }
+
+  function getSakuyaPhaseIndex(boss) {
+    const ratio = boss.hp / boss.maxHp;
+    if (ratio <= 0.2 || boss.sakuyaPhase === 4) return 4;
+    if (ratio <= 0.4) return 3;
+    if (ratio <= 0.6) return 2;
+    if (ratio <= 0.8) return 1;
+    return 0;
+  }
+
+  function updateSakuyaTsubamePhase(boss, dt) {
+    boss.fireTimer -= dt;
+    if (boss.fireTimer > 0) return;
+    boss.fireTimer = 0.58;
+    playShotSound("bossSmash");
+    for (const angle of [-0.48, -0.32, -0.16, 0, 0.16, 0.32, 0.48]) {
+      pushPatternBullet(boss, { speed: 350, radius: 8, originX: -44, kind: "sakuyaTsubame" }, Math.PI + angle);
+    }
+  }
+
+  function updateSakuyaRitsukoPhase(boss, dt) {
+    boss.fireTimer -= dt;
+    boss.sakuyaEightWayTimer -= dt;
+    if (boss.fireTimer <= 0) {
+      boss.fireTimer = 0.48;
+      playShotSound("schoolTool");
+      for (const [index, offset] of [-0.34, -0.17, 0, 0.17, 0.34].entries()) {
+        pushAimedBullet(boss, 310 + index * 18, offset, ["pencil", "compass", "ruler", "compass", "pencil"][index], 8);
+      }
+    }
+    if (boss.sakuyaEightWayTimer <= 0) {
+      boss.sakuyaEightWayTimer = 1.15;
+      shootReinforcementEightWay({ x: boss.x - 10, y: boss.y + 42 }, 250);
+    }
+  }
+
+  function updateSakuyaSayoPhase(boss, dt) {
+    boss.fireTimer -= dt;
+    boss.sakuyaSubTimer -= dt;
+    if (boss.fireTimer <= 0) {
+      boss.fireTimer = 0.7;
+      executeBulletPattern(boss, "sayoShockwave");
+    }
+    if (boss.sakuyaSubTimer <= 0) {
+      boss.sakuyaSubTimer = 1.45;
+      executeBulletPattern({ x: boss.x - 30, y: boss.y - 16 }, "sayoIdleRadial");
+    }
+  }
+
+  function updateSakuyaBlackHolePhase(boss, dt) {
+    boss.invincible = true;
+    boss.finalTimer = (boss.finalTimer || 0) + dt;
+    boss.fragments = null;
+    boss.blackHole = { x: boss.x - 78, y: boss.y - 10, r: 58, pullRadius: 255 };
+    state.knives = state.knives.filter((knife) => distance(knife, boss.blackHole) > boss.blackHole.pullRadius * 0.84);
+    if (state.tachiProjectile && distance(state.tachiProjectile, boss.blackHole) < boss.blackHole.pullRadius * 0.72) state.tachiProjectile.dead = true;
+    applyBlackHolePull(boss.blackHole, dt);
+    if (boss.finalTimer >= 20 && !boss.finalCleared) {
+      boss.finalCleared = true;
+      boss.invincible = false;
+      defeatBoss();
+    }
+  }
+
+  function applyBlackHolePull(hole, dt) {
+    if (state.player.dashState !== "none") return;
+    const hurtPoint = playerHurtPoint();
+    const dx = hole.x - hurtPoint.x;
+    const dy = hole.y - hurtPoint.y;
+    const dist = Math.hypot(dx, dy) || 1;
+    if (dist > hole.pullRadius) return;
+    const strength = (1 - dist / hole.pullRadius) * 250 + 45;
+    state.player.x = clamp(state.player.x + (dx / dist) * strength * dt, 34, WIDTH * 0.48);
+    state.player.y = clampHumanoidY(state.player.y + (dy / dist) * strength * dt);
+  }
+
+  function damageStageThreeBoss() {
+    if (!state.boss) return;
+    if (state.boss.kind === "sakuya" && state.boss.hp <= state.boss.maxHp * 0.2) {
+      state.boss.hp = Math.max(1, state.boss.hp);
+      state.boss.sakuyaPhase = 4;
+      return;
+    }
+    if (state.boss.hp <= 0) defeatBoss();
   }
 
   function update(dt) {
@@ -1094,12 +1457,12 @@
   }
 
   function updatePhase(dt) {
-    const plan = state.stage === 2 ? STAGE_TWO_PLAN : phasePlan;
+    const plan = getCurrentStagePlan();
     if (state.phase === "wave1") {
-      if (state.phaseTime < plan.wave1) spawnWaveEnemies(dt, plan.wave1SpawnInterval);
+      if (state.phaseTime < plan.wave1 && shouldSpawnRegularEnemies()) spawnWaveEnemies(dt, plan.wave1SpawnInterval);
       if (state.phaseTime >= plan.wave1 && isStageClearForBoss()) startDialogue("midBoss", "midBoss");
     } else if (state.phase === "wave2") {
-      if (state.phaseTime < plan.wave2) spawnWaveEnemies(dt, plan.wave2SpawnInterval);
+      if (state.phaseTime < plan.wave2 && shouldSpawnRegularEnemies()) spawnWaveEnemies(dt, plan.wave2SpawnInterval);
       if (state.phaseTime >= plan.wave2 && isStageClearForBoss()) startDialogue("boss", "boss");
     } else if (state.phase === "midBoss") {
       if (state.stage === 2 && state.waitingForMidBossReinforcementsClear) {
@@ -1116,6 +1479,16 @@
     } else if (state.phase === "boss") {
       bossShoot(dt);
     }
+  }
+
+  function getCurrentStagePlan() {
+    if (state.stage === 2) return STAGE_TWO_PLAN;
+    if (state.stage === 3) return STAGE_THREE_PLAN;
+    return phasePlan;
+  }
+
+  function shouldSpawnRegularEnemies() {
+    return state.stage !== 3;
   }
 
   function isStageClearForBoss() {
@@ -1338,6 +1711,47 @@
     state.particles = state.particles.filter((particle) => particle.life > 0);
   }
 
+
+  function checkStageThreeHazardCollision(hurtPoint) {
+    const boss = state.boss;
+    if (state.stage !== 3 || !boss) return false;
+    if (boss.fragments) {
+      for (const fragment of boss.fragments) {
+        if ((fragment.mode === "straight" || fragment.mode === "rush") && distance(fragment, hurtPoint) < fragment.r + PLAYER_HURT_RADIUS) {
+          damagePlayer();
+          return true;
+        }
+      }
+    }
+    if (boss.laserActive && isPointInMasumiLaser(boss, hurtPoint)) {
+      damagePlayer();
+      return true;
+    }
+    if (boss.blackHole && distance(boss.blackHole, hurtPoint) < boss.blackHole.r + PLAYER_HURT_RADIUS) {
+      damagePlayer();
+      return true;
+    }
+    return false;
+  }
+
+  function isPointInMasumiLaser(boss, point) {
+    const hand = getMasumiHandPoint(boss);
+    const length = 920;
+    const angle = boss.laserAngle || 0;
+    const end = { x: hand.x + Math.cos(angle) * length, y: hand.y + Math.sin(angle) * length };
+    const reverseEnd = { x: hand.x - Math.cos(angle) * length, y: hand.y - Math.sin(angle) * length };
+    const width = (boss.laserWidth || 18) + PLAYER_HURT_RADIUS * 0.5;
+    return pointSegmentDistance(point, hand, end) < width || pointSegmentDistance(point, hand, reverseEnd) < width;
+  }
+
+  function pointSegmentDistance(point, start, end) {
+    const dx = end.x - start.x;
+    const dy = end.y - start.y;
+    const lengthSq = dx * dx + dy * dy || 1;
+    const t = clamp(((point.x - start.x) * dx + (point.y - start.y) * dy) / lengthSq, 0, 1);
+    return Math.hypot(point.x - (start.x + dx * t), point.y - (start.y + dy * t));
+  }
+
   function checkCollisions() {
     checkDashCollisions();
     checkTachiCollisions();
@@ -1360,6 +1774,7 @@
 
     if (state.player.invincible <= 0) {
       const hurtPoint = playerHurtPoint();
+      if (checkStageThreeHazardCollision(hurtPoint)) return;
       for (const ball of state.enemyBullets) {
         if (distance(ball, hurtPoint) < ball.r + PLAYER_HURT_RADIUS) {
           ball.dead = true;
@@ -1409,13 +1824,22 @@
       damageStageTwoBoss();
       return;
     }
-    if (state.phase === "midBoss" && state.boss.hp <= phasePlan.midBossTarget - phasePlan.midBossRetreatDamage) {
+    if (state.stage === 3) {
+      damageStageThreeBoss();
+      return;
+    }
+    const plan = getCurrentStagePlan();
+    if (
+      state.stage === 1 &&
+      state.phase === "midBoss" &&
+      state.boss.hp <= plan.midBossTarget - plan.midBossRetreatDamage
+    ) {
       triggerMidBossReinforcements();
       return;
     }
     if (state.boss.hp <= 0) {
       defeatBoss();
-    } else if (state.boss.rank === 1 && state.boss.hp <= phasePlan.bossPhaseTarget && !state.boss.changed) {
+    } else if (state.boss.rank === 1 && state.boss.hp <= plan.bossPhaseTarget && !state.boss.changed) {
       triggerBossAttackChange();
     }
   }
@@ -1423,35 +1847,34 @@
   function triggerMidBossReinforcements() {
     if (!state.boss || state.boss.reinforcementsCalled) return;
     state.boss.reinforcementsCalled = true;
-    state.boss.invincible = true;
     state.boss.retreating = true;
     state.boss.fireTimer = 999;
     state.enemyBullets = [];
-    state.message = "朝比奈 撤退";
+    state.message = "\u671d\u6bd4\u5948 \u64a4\u9000";
     spawnReinforcementEnemy("twintail", HEIGHT * 0.72);
     spawnReinforcementEnemy("visorGlasses", HEIGHT * 0.84);
   }
 
   function triggerBossAttackChange() {
     state.boss.changed = true;
-    state.message = "つばめの攻撃が激しくなった！";
-    playVoiceLine("通さない！", "bright");
+    state.message = "\u3064\u3070\u3081\u306e\u653b\u6483\u304c\u6fc0\u3057\u304f\u306a\u3063\u305f\uff01";
+    playVoiceLine("\u901a\u3055\u306a\u3044\uff01", "bright");
   }
 
   function defeatBoss() {
     burst(state.boss.x, state.boss.y, "#7ee8ff", 34);
     if (state.phase === "midBoss") {
-      playVoiceLine("本気なの！？", "bright");
+      playVoiceLine("\u672c\u6c17\u306a\u306e\uff01\uff1f", "bright");
       if (state.stage === 2 && hasStageTwoReinforcementPresence()) {
         state.boss = null;
         state.waitingForMidBossReinforcementsClear = true;
-        state.message = "援軍掃討";
+        state.message = "\u63f4\u8ecd\u6383\u8a0e";
         return;
       }
       setPhase("wave2");
       return;
     }
-    playVoiceLine("うわーっ", "bright");
+    playVoiceLine("\u3046\u308f\u30fc\u3063", "bright");
     startBossDefeatedDialogue();
   }
 
@@ -1467,7 +1890,7 @@
     if (!state.boss || state.boss.reinforcementsCalled) return;
     state.boss.reinforcementsCalled = true;
     state.boss.fireTimer = CONFIG.bosses.ritsuko.reinforcementPauseSeconds;
-    state.message = "律子 援軍招集";
+    state.message = "\u5f8b\u5b50 \u63f4\u8ecd\u62db\u96c6";
     spawnReinforcementEnemy("yankeeEnforcer", HEIGHT * 0.84);
     scheduleReinforcementEnemy("glassesEnforcer", HEIGHT * 0.72, STAGE_TWO_REINFORCEMENT_CHASE_DELAY_SECONDS);
   }
@@ -1511,7 +1934,7 @@
     boss.y = clampBossY(BOSS_CENTER_Y + Math.sin(boss.moveTimer * 1.7) * BOSS_MOVE_AMPLITUDE);
     if (boss.rank === 2) {
       const powered = boss.hp <= CONFIG.bosses.ritsuko.poweredHp;
-      if (powered && !boss.changed) state.message = "律子 強化";
+      if (powered && !boss.changed) state.message = "\u5f8b\u5b50 \u5f37\u5316";
       boss.changed = powered;
       if (boss.fireTimer > 0) return;
       boss.fireTimer = boss.changed
@@ -1581,7 +2004,7 @@
   function updateSayoAttack(boss, dt) {
     const wasChanged = boss.changed;
     boss.changed = boss.hp <= STAGE_TWO_PLAN.bossPhaseTarget;
-    if (boss.changed && !wasChanged) state.message = "小夜の攻撃が激しくなった！";
+    if (boss.changed && !wasChanged) state.message = "\u5c0f\u591c\u306e\u653b\u6483\u304c\u6fc0\u3057\u304f\u306a\u3063\u305f\uff01";
     if (!boss.changed) {
       boss.invincible = false;
       if (boss.fireTimer > 0) return;
@@ -1787,8 +2210,12 @@
     state.player.dashCooldown = 0;
     state.player.dashState = "none";
     state.player.trail = [];
+    state.message = `STAGE ${state.stage} CLEAR`;
+    if (hasStageStartDialogue()) {
+      startDialogue("stageStart", "wave1");
+      return;
+    }
     setPhase("wave1");
-    state.message = `${state.stage}面 開始`;
   }
 
   function startLifeRecovery(nextPhase) {
@@ -1831,7 +2258,7 @@
       return;
     }
     state.mode = "clear";
-    state.message = "GAME CLEAR";
+    state.message = "\u30b2\u30fc\u30e0\u30af\u30ea\u30a2";
   }
 
   function updateLifeIndicatorAnimations(dt) {
@@ -1845,7 +2272,7 @@
   function damagePlayer() {
     const hitX = state.player.x;
     const hitY = state.player.y;
-    playVoiceLine("くぅっ", "cool");
+    playVoiceLine("\u304f\u3046\u3063", "cool");
     const lostLifeIndex = Math.ceil(state.player.life) - 1;
     state.player.life -= 1;
     state.player.lifeWipe = {
@@ -1858,7 +2285,7 @@
     burst(hitX, hitY, "#ff5278", 18);
     if (state.player.life <= 0) {
       state.mode = "gameOver";
-      state.message = "ゲームオーバー";
+      state.message = "\u30b2\u30fc\u30e0\u30aa\u30fc\u30d0\u30fc";
     }
   }
 
@@ -1879,6 +2306,9 @@
 
   function draw() {
     ctx.imageSmoothingEnabled = false;
+    const shake = getStageThreeScreenShake();
+    ctx.save();
+    ctx.translate(shake.x, shake.y);
     drawBackground();
     drawHud();
     drawDashTrail();
@@ -1890,9 +2320,19 @@
     drawBoss();
     drawEnemyBullets();
     drawParticles();
+    ctx.restore();
+    drawBlackHoleCountdown();
     drawOverlayMessage();
   }
 
+  function getStageThreeScreenShake() {
+    const boss = state.boss;
+    if (state.stage !== 3 || !boss || boss.kind !== "sakuya" || boss.sakuyaPhase !== 4 || !boss.blackHole) return { x: 0, y: 0 };
+    return {
+      x: Math.sin(state.elapsed * 83) * 1.6 + Math.sin(state.elapsed * 37) * 0.8,
+      y: Math.cos(state.elapsed * 71) * 1.4,
+    };
+  }
   function pixelRect(x, y, width, height) {
     ctx.fillRect(Math.round(x), Math.round(y), Math.round(width), Math.round(height));
   }
@@ -1909,6 +2349,10 @@
   }
 
   function drawBackground() {
+    if (state.stage === 3) {
+      drawStageThreeBackground();
+      return;
+    }
     if (state.stage === 2) {
       drawStageTwoBackground();
       return;
@@ -1917,6 +2361,197 @@
     drawFallbackBackground();
   }
 
+  function drawStageThreeBackground() {
+    const stop = getStageThreeProgress();
+    if (state.phase === "midBossDialogue" || state.phase === "midBoss") {
+      if (drawStageThreeStaticBackground(stageThreeDoorBackground)) return;
+      drawStageThreeCorridor(0.5);
+      return;
+    }
+    if (stop < 0.58) {
+      if (drawStageThreeScrollingBackground(stageThreeCorridorBackground, clamp(stop / 0.46, 0, 1))) return;
+      drawStageThreeCorridor(stop);
+      return;
+    }
+    if (state.phase === "wave2") {
+      const hallProgress = clamp((stop - 0.6) / 0.22, 0, 1);
+      if (drawStageThreeHallTransitionBackground(hallProgress)) return;
+    }
+    if (drawStageThreeStaticBackground(stageThreeHallBackground)) return;
+    drawStageThreeHall(stop);
+  }
+
+  function isImageReady(image) {
+    return image.complete && image.naturalWidth > 0;
+  }
+
+  function drawStageThreeScrollingBackground(image, progress) {
+    if (!isImageReady(image)) return false;
+    const scroll = Math.round(progress * WIDTH);
+    const x = -scroll;
+    ctx.drawImage(image, x, 0, WIDTH, HEIGHT);
+    ctx.drawImage(image, x + WIDTH, 0, WIDTH, HEIGHT);
+    return true;
+  }
+
+  function drawStageThreeStaticBackground(image, offsetX = 0, alpha = 1) {
+    if (!isImageReady(image)) return false;
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.drawImage(image, Math.round(offsetX), 0, WIDTH, HEIGHT);
+    ctx.restore();
+    return true;
+  }
+
+  function drawStageThreeHallTransitionBackground(progress) {
+    if (!isImageReady(stageThreeDoorBackground) || !isImageReady(stageThreeHallBackground)) return false;
+    const doorX = -progress * 180;
+    const hallX = (1 - progress) * 110;
+    drawStageThreeStaticBackground(stageThreeDoorBackground, doorX, 1 - progress * 0.35);
+    drawStageThreeStaticBackground(stageThreeHallBackground, hallX, progress);
+    return true;
+  }
+
+  function getStageThreeProgress() {
+    if (state.phase === "wave1") return clamp(state.phaseTime / STAGE_THREE_PLAN.wave1, 0, 1) * 0.46;
+    if (state.phase === "midBossDialogue" || state.phase === "midBoss") return 0.5;
+    if (state.phase === "wave2") return 0.6 + clamp(state.phaseTime / STAGE_THREE_PLAN.wave2, 0, 1) * 0.22;
+    if (state.phase === "bossDialogue" || state.phase === "boss" || state.phase === "bossDefeatedDialogue") return 1;
+    return 0;
+  }
+
+  function drawStageThreeCorridor(stop) {
+    const doorFocus = clamp((stop - 0.28) / 0.18, 0, 1);
+    const scroll = stop * 760;
+    const gradient = ctx.createLinearGradient(0, 0, 0, HEIGHT);
+    gradient.addColorStop(0, "#161020");
+    gradient.addColorStop(0.46, "#44304a");
+    gradient.addColorStop(1, "#130d17");
+    ctx.fillStyle = gradient;
+    pixelRect(0, 0, WIDTH, HEIGHT);
+
+    ctx.fillStyle = "#2b1c2b";
+    pixelRect(0, 68, WIDTH, 126);
+    ctx.fillStyle = "#60435c";
+    for (let x = -160 - (scroll * 0.14) % 220; x < WIDTH + 220; x += 220) {
+      pixelRect(x, 82, 126, 70);
+      ctx.fillStyle = "#f0c278";
+      pixelRect(x + 12, 96, 102, 8);
+      pixelRect(x + 20, 126, 84, 6);
+      ctx.fillStyle = "#60435c";
+    }
+
+    ctx.fillStyle = "#2a202a";
+    pixelRect(0, 194, WIDTH, 134);
+    for (let x = -100 - (scroll * 0.42) % 160; x < WIDTH + 200; x += 160) {
+      ctx.fillStyle = "#6d5871";
+      pixelRect(x, 154, 42, 242);
+      ctx.fillStyle = "#c89a58";
+      pixelRect(x - 8, 154, 58, 14);
+      pixelRect(x - 10, 382, 62, 16);
+      ctx.fillStyle = "#352538";
+      pixelRect(x + 30, 176, 9, 194);
+    }
+
+    ctx.fillStyle = "#31222b";
+    pixelRect(0, 328, WIDTH, HEIGHT - 328);
+    ctx.fillStyle = "#7a1f2a";
+    ctx.beginPath();
+    ctx.moveTo(WIDTH * 0.38, HEIGHT);
+    ctx.lineTo(WIDTH * 0.48, 328);
+    ctx.lineTo(WIDTH * 0.7, 328);
+    ctx.lineTo(WIDTH * 0.88, HEIGHT);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = "#b33a38";
+    for (let y = 342 + (scroll * 0.64) % 46; y < HEIGHT; y += 46) pixelRect(WIDTH * 0.43, y, WIDTH * 0.36, 4);
+    ctx.fillStyle = "#dfb66a";
+    pixelRect(WIDTH * 0.48, 328, 10, HEIGHT - 328);
+    pixelRect(WIDTH * 0.69, 328, 10, HEIGHT - 328);
+
+    const doorWidth = lerp(130, 300, doorFocus);
+    const doorHeight = lerp(172, 330, doorFocus);
+    const doorX = lerp(WIDTH - 230, WIDTH * 0.62 - doorWidth / 2, doorFocus);
+    const doorY = 172 - doorFocus * 32;
+    drawCarvedWoodDoor(doorX, doorY, doorWidth, doorHeight, doorFocus);
+  }
+
+  function drawCarvedWoodDoor(x, y, width, height, focus) {
+    ctx.fillStyle = "#2b1510";
+    pixelRect(x - 18, y - 20, width + 36, height + 34);
+    ctx.fillStyle = "#6a331f";
+    pixelRect(x, y, width, height);
+    ctx.fillStyle = "#3d1d16";
+    pixelRect(x + width / 2 - 4, y + 10, 8, height - 20);
+    ctx.fillStyle = "#c18a44";
+    pixelRect(x + 16, y + 18, width - 32, 6);
+    pixelRect(x + 16, y + height - 28, width - 32, 6);
+    for (let side = 0; side < 2; side += 1) {
+      const panelX = x + 22 + side * (width / 2);
+      ctx.fillStyle = "#4a2118";
+      pixelRect(panelX, y + 42, width / 2 - 44, height - 86);
+      ctx.fillStyle = "#9d6a35";
+      for (let yy = y + 66; yy < y + height - 58; yy += 34) {
+        pixelRect(panelX + 12, yy, width / 2 - 68, 5);
+        pixelRect(panelX + 22 + ((yy / 34) % 2) * 12, yy - 12, 12, 18);
+      }
+    }
+    ctx.fillStyle = "#f0c278";
+    const handleY = y + height * 0.55;
+    pixelRect(x + width / 2 - 22, handleY, 14, 22);
+    pixelRect(x + width / 2 + 8, handleY, 14, 22);
+    if (focus > 0.75) {
+      ctx.fillStyle = "rgba(255, 226, 145, 0.18)";
+      pixelRect(x - 10, y - 12, width + 20, height + 24);
+    }
+  }
+
+  function drawStageThreeHall(stop) {
+    const hallProgress = clamp((stop - 0.6) / 0.4, 0, 1);
+    const gradient = ctx.createLinearGradient(0, 0, 0, HEIGHT);
+    gradient.addColorStop(0, "#11182e");
+    gradient.addColorStop(0.48, "#e8e9ee");
+    gradient.addColorStop(1, "#6f7180");
+    ctx.fillStyle = gradient;
+    pixelRect(0, 0, WIDTH, HEIGHT);
+
+    ctx.fillStyle = "#11182e";
+    pixelRect(0, 0, WIDTH, 112);
+    ctx.fillStyle = "#dce1ee";
+    pixelRect(0, 112, WIDTH, 224);
+    ctx.fillStyle = "rgba(210, 226, 255, 0.58)";
+    ctx.beginPath();
+    ctx.moveTo(WIDTH * 0.52, 0);
+    ctx.lineTo(WIDTH * 0.78, HEIGHT);
+    ctx.lineTo(WIDTH * 0.42, HEIGHT);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = "#f7f7fb";
+    for (let x = -120 - hallProgress * 160; x < WIDTH + 140; x += 180) {
+      pixelRect(x, 104, 54, 316);
+      ctx.fillStyle = "#c5c9d5";
+      pixelRect(x - 10, 104, 74, 16);
+      pixelRect(x - 14, 404, 82, 18);
+      ctx.fillStyle = "#f7f7fb";
+    }
+
+    ctx.fillStyle = "#d4d5dd";
+    pixelRect(0, 336, WIDTH, HEIGHT - 336);
+    ctx.fillStyle = "#f4f4f8";
+    for (let x = -80 - hallProgress * 260; x < WIDTH + 100; x += 96) {
+      pixelRect(x, 376, 74, 8);
+      pixelRect(x + 30, 336, 7, HEIGHT - 336);
+    }
+    ctx.fillStyle = "rgba(255,255,255,0.38)";
+    pixelRect(WIDTH * 0.43, 0, 160, HEIGHT);
+
+    const doorFade = 1 - hallProgress;
+    if (doorFade > 0) {
+      ctx.globalAlpha = doorFade;
+      drawCarvedWoodDoor(WIDTH * 0.1, 172, 180, 250, 0.9);
+      ctx.globalAlpha = 1;
+    }
+  }
   function drawStageTwoBackground() {
     if (!stageTwoBackground.complete || stageTwoBackground.naturalWidth === 0) {
       drawStageTwoFallbackBackground();
@@ -2020,7 +2655,8 @@
   }
 
   function lerpColor(a, b, t) {
-    return `rgb(${a.map((value, index) => Math.round(lerp(value, b[index], t))).join(",")})`;
+    const rgb = a.map((value, index) => Math.round(lerp(value, b[index], t))).join(",");
+    return "rgb(" + rgb + ")";
   }
 
   function drawStageOneBackground() {
@@ -2136,13 +2772,13 @@
     ctx.fillRect(0, 0, WIDTH, 48);
     ctx.fillStyle = "#f5f7ff";
     ctx.font = "700 18px sans-serif";
-    const stageName = state.stage === 2 ? "2面 学校の廊下" : `${state.stage}面 テニスコート`;
+    const stageName = getStageDisplayName();
     ctx.fillText(stageName, 18, 30);
     drawLifeIndicator(250, 9);
     ctx.fillText(`SCORE ${state.score}`, 500, 30);
     if (!touchControlsEnabled) {
       ctx.font = "700 14px sans-serif";
-      ctx.fillText("移動: 矢印/WASD  小刀: Z  溜め突進: Space長押し", 18, HEIGHT - 18);
+      ctx.fillText("\u79fb\u52d5: \u77e2\u5370/WASD  \u5c0f\u5200: Z  \u6e9c\u3081\u7a81\u9032: Space\u9577\u62bc\u3057", 18, HEIGHT - 18);
     }
     ctx.textAlign = "right";
     ctx.fillText(phaseLabel(), WIDTH - 18, 30);
@@ -2155,6 +2791,11 @@
     }
   }
 
+  function getStageDisplayName() {
+    if (state.stage === 2) return "2\u9762 \u5b66\u6821\u306e\u5eca\u4e0b";
+    if (state.stage === 3) return "3\u9762 \u5fa1\u9580\u9662\u56de\u5eca";
+    return "1\u9762 \u30c6\u30cb\u30b9\u30b3\u30fc\u30c8";
+  }
   function drawLifeIndicator(x, y) {
     ctx.fillStyle = "#f5f7ff";
     ctx.font = "800 15px sans-serif";
@@ -2205,10 +2846,9 @@
   }
 
   function phaseLabel() {
-    if (state.phase === "wave1") return "雑魚戦 1";
-    if (state.phase === "midBoss") return "中ボス";
-    if (state.phase === "wave2") return "雑魚戦 2";
-    if (state.phase === "boss") return state.boss && state.boss.changed ? "ボス 強化" : "ボス";
+    if (state.phase === "wave1") return "\u96d1\u9b5a\u6226 1";
+    if (state.phase === "midBoss") return "\u4e2d\u30dc\u30b9";
+    if (state.phase === "wave2") return "\u96d1\u9b5a\u6226 2";
     return "";
   }
 
@@ -2295,6 +2935,7 @@
   }
 
   function getForegroundScrollPosition() {
+    if (state.stage === 3) return getStageThreeProgress() * 900;
     if (state.stage === 2) {
       const stop = getStageTwoProgress();
       if (!stageTwoBackground.complete || stageTwoBackground.naturalWidth === 0) return stop;
@@ -2505,8 +3146,8 @@
     if (!tachi) return;
     ctx.save();
     ctx.translate(tachi.x, tachi.y);
-    ctx.rotate(state.tachiProjectile ? Math.atan2(tachi.vy, tachi.vx) : state.player.tachiOrbitTime * Math.PI * 2 / PLAYER_TACHI_ORBIT_SECONDS + Math.PI / 2);
-    if (drawBladeSprite(tachiSprite, 138, 12)) {
+    ctx.rotate(state.tachiProjectile ? Math.atan2(tachi.vy, tachi.vx) : state.player.tachiOrbitTime * Math.PI * 2 / PLAYER_TACHI_ORBIT_SECONDS + Math.PI * 1.5);
+    if (drawBladeSprite(tachiSprite, 108, 9.5)) {
       ctx.restore();
       return;
     }
@@ -2630,6 +3271,10 @@
     if (!boss) return;
     ctx.save();
     ctx.translate(boss.x, boss.y);
+    if (drawStageThreeBoss(boss)) {
+      ctx.restore();
+      return;
+    }
     if (drawStageTwoBoss(boss)) {
       ctx.restore();
       return;
@@ -2658,6 +3303,180 @@
     pixelRect(-22, 48, 14, 22);
     pixelRect(8, 48, 14, 22);
     ctx.restore();
+  }
+
+
+  function drawStageThreeBoss(boss) {
+    if (state.stage !== 3) return false;
+    if (!(boss.kind === "sakuya" && boss.sakuyaPhase === 4)) drawMasumiFragmentsLocal(boss);
+    if (boss.kind === "masumi") {
+      drawMasumiLaserLocal(boss);
+      if (drawMasumiBossSprite(boss)) return true;
+      drawMasumiFallback(boss);
+      return true;
+    }
+    drawSakuyaBlackHoleLocal(boss);
+    if (drawSakuyaBossSprite(boss)) return true;
+    drawSakuyaFallback(boss);
+    return true;
+  }
+
+  function drawMasumiBossSprite(boss) {
+    if (!masumiBossSprite.complete || masumiBossSprite.naturalWidth === 0) return false;
+    const frame = Math.floor(state.elapsed * 7) % BOSS_SPRITE_COLUMNS;
+    const row = boss.laserActive || (boss.fragments || []).some((fragment) => fragment.mode === "straight" || fragment.mode === "rush") ? 1 : 0;
+    const sourceWidth = masumiBossSprite.naturalWidth / BOSS_SPRITE_COLUMNS;
+    const sourceHeight = masumiBossSprite.naturalHeight / BOSS_SPRITE_ROWS;
+    ctx.drawImage(
+      masumiBossSprite,
+      frame * sourceWidth,
+      row * sourceHeight,
+      sourceWidth,
+      sourceHeight,
+      -MASUMI_BOSS_SPRITE_DRAW_SIZE * 0.52,
+      -MASUMI_BOSS_SPRITE_DRAW_SIZE * 0.58,
+      MASUMI_BOSS_SPRITE_DRAW_SIZE,
+      MASUMI_BOSS_SPRITE_DRAW_SIZE
+    );
+    return true;
+  }
+
+  function drawSakuyaBossSprite(boss) {
+    if (!sakuyaBossSprite.complete || sakuyaBossSprite.naturalWidth === 0) return false;
+    const frame = Math.floor(state.elapsed * 6) % SAKUYA_BOSS_SPRITE_COLUMNS;
+    const row = clamp(boss.sakuyaPhase || 0, 0, SAKUYA_BOSS_SPRITE_ROWS - 1);
+    const sourceWidth = sakuyaBossSprite.naturalWidth / SAKUYA_BOSS_SPRITE_COLUMNS;
+    const sourceHeight = sakuyaBossSprite.naturalHeight / SAKUYA_BOSS_SPRITE_ROWS;
+    ctx.drawImage(
+      sakuyaBossSprite,
+      frame * sourceWidth,
+      row * sourceHeight,
+      sourceWidth,
+      sourceHeight,
+      -SAKUYA_BOSS_SPRITE_DRAW_SIZE * 0.52,
+      -SAKUYA_BOSS_SPRITE_DRAW_SIZE * 0.58,
+      SAKUYA_BOSS_SPRITE_DRAW_SIZE,
+      SAKUYA_BOSS_SPRITE_DRAW_SIZE
+    );
+    return true;
+  }
+
+  function drawMasumiFragmentsLocal(boss) {
+    if (!boss.fragments) return;
+    for (const fragment of boss.fragments) {
+      const x = fragment.x - boss.x;
+      const y = fragment.y - boss.y;
+      const angle = state.elapsed * 4 + fragment.index;
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(angle);
+      ctx.fillStyle = fragment.mode === "home" || fragment.mode === "return" ? "rgba(175, 240, 255, 0.88)" : "#ffffff";
+      ctx.strokeStyle = "#6b6dff";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(0, -14);
+      ctx.lineTo(8, 0);
+      ctx.lineTo(0, 14);
+      ctx.lineTo(-8, 0);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      ctx.restore();
+    }
+  }
+
+  function drawMasumiLaserLocal(boss) {
+    if (!boss.laserActive) return;
+    const hand = getMasumiHandPoint(boss);
+    const x = hand.x - boss.x;
+    const y = hand.y - boss.y;
+    const angle = boss.laserAngle || 0;
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(angle);
+    ctx.globalCompositeOperation = "lighter";
+    ctx.strokeStyle = "rgba(164, 247, 255, 0.32)";
+    ctx.lineWidth = (boss.laserWidth || 18) * 2.2;
+    ctx.beginPath();
+    ctx.moveTo(-920, 0);
+    ctx.lineTo(920, 0);
+    ctx.stroke();
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.92)";
+    ctx.lineWidth = Math.max(3, (boss.laserWidth || 18) * 0.42);
+    ctx.beginPath();
+    ctx.moveTo(-920, 0);
+    ctx.lineTo(920, 0);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawSakuyaBlackHoleLocal(boss) {
+    if (!boss.blackHole) return;
+    const x = boss.blackHole.x - boss.x;
+    const y = boss.blackHole.y - boss.y;
+    const pulse = 1 + Math.sin(state.elapsed * 9) * 0.06;
+    const gradient = ctx.createRadialGradient(x, y, 4, x, y, boss.blackHole.r * 1.65 * pulse);
+    gradient.addColorStop(0, "#030008");
+    gradient.addColorStop(0.32, "#160029");
+    gradient.addColorStop(0.58, "rgba(88, 0, 124, 0.85)");
+    gradient.addColorStop(1, "rgba(0, 0, 0, 0)");
+    ctx.save();
+    ctx.globalCompositeOperation = "lighter";
+    ctx.fillStyle = gradient;
+    ctx.beginPath();
+    ctx.arc(x, y, boss.blackHole.r * 1.65 * pulse, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = "rgba(210, 236, 255, 0.6)";
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(x, y, boss.blackHole.r * (0.86 + Math.sin(state.elapsed * 13) * 0.04), 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawBlackHoleCountdown() {
+    const boss = state.boss;
+    if (state.stage !== 3 || !boss || boss.kind !== "sakuya" || boss.sakuyaPhase !== 4) return;
+    const remaining = Math.max(0, Math.ceil(20 - (boss.finalTimer || 0)));
+    ctx.save();
+    ctx.font = "bold 24px system-ui, sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillStyle = "rgba(255, 255, 255, 0.92)";
+    ctx.shadowColor = "#7ee8ff";
+    ctx.shadowBlur = 12;
+    ctx.fillText(String(remaining), WIDTH / 2, 42);
+    ctx.restore();
+  }
+
+  function drawMasumiFallback(boss) {
+    ctx.fillStyle = "#edf7ff";
+    pixelRect(-17, -50, 34, 30);
+    pixelRect(-24, -20, 48, 66);
+    ctx.fillStyle = "#1d2440";
+    pixelRect(-20, -58, 40, 14);
+    ctx.fillStyle = "#7ee8ff";
+    pixelRect(-42, -24, 18, 8);
+    pixelRect(-10, 46, 8, 26);
+    pixelRect(2, 46, 8, 26);
+  }
+
+  function drawSakuyaFallback(boss) {
+    ctx.fillStyle = "#dce7f7";
+    pixelRect(-38, -72, 76, 92);
+    ctx.fillStyle = "#2a3048";
+    pixelRect(-50, 20, 100, 30);
+    ctx.fillStyle = "#9fb6d9";
+    if ((boss.sakuyaPhase || 0) < 3) {
+      pixelRect(-96, -40, 58, 12);
+      pixelRect(38, -40, 58, 12);
+    }
+    if ((boss.sakuyaPhase || 0) < 2) {
+      pixelRect(-90, -6, 42, 18);
+      pixelRect(48, -6, 42, 18);
+    }
+    ctx.fillStyle = "#7ee8ff";
+    pixelRect(-72, 48, 24, 8);
+    pixelRect(48, 48, 24, 8);
   }
 
   function drawStageTwoBoss(boss) {
@@ -2866,8 +3685,8 @@
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.rotate(-0.13);
-    ctx.strokeText("待ちなさい！", 0, 1);
-    ctx.fillText("待ちなさい！", 0, 1);
+    ctx.strokeText("\u5f85\u3061\u306a\u3055\u3044\uff01", 0, 1);
+    ctx.fillText("\u5f85\u3061\u306a\u3055\u3044\uff01", 0, 1);
     ctx.rotate(0.13);
     ctx.textAlign = "left";
     ctx.textBaseline = "alphabetic";
@@ -2898,10 +3717,10 @@
       ctx.fillStyle = state.mode === "clear" ? "#7ee8ff" : "#ff5278";
       ctx.font = "900 52px sans-serif";
       ctx.textAlign = "center";
-      ctx.fillText(state.mode === "clear" ? "ゲームクリア" : "ゲームオーバー", WIDTH / 2, HEIGHT / 2 - 12);
+      ctx.fillText(state.mode === "clear" ? "\u30b2\u30fc\u30e0\u30af\u30ea\u30a2" : "\u30b2\u30fc\u30e0\u30aa\u30fc\u30d0\u30fc", WIDTH / 2, HEIGHT / 2 - 12);
       ctx.fillStyle = "#f5f7ff";
       ctx.font = "700 20px sans-serif";
-      ctx.fillText("Enterでタイトルへ戻る", WIDTH / 2, HEIGHT / 2 + 42);
+      ctx.fillText("Enter\u3067\u30bf\u30a4\u30c8\u30eb\u3078\u623b\u308b", WIDTH / 2, HEIGHT / 2 + 42);
       ctx.textAlign = "left";
     }
   }
@@ -3075,10 +3894,11 @@
   /* DEV_DEBUG_ONLY_START */
   async function setupLocalDebugStart() {
     if (!debugStartPanel || !debugStageSelect || !debugPhaseSelect || !debugStartButton) return;
+    const debugParams = new URLSearchParams(window.location.search);
+    const debugEnabledByUrl = debugParams.get("debug") === "1" || debugParams.get("debug") === "true";
     const response = await fetch("local-debug-config.json", { cache: "no-store" }).catch(() => null);
-    if (!response || !response.ok) return;
-    const config = await response.json().catch(() => null);
-    if (!config || config.enabled !== true) return;
+    const config = response && response.ok ? await response.json().catch(() => null) : null;
+    if (!debugEnabledByUrl && (!config || config.enabled !== true)) return;
     debugStartPanel.hidden = false;
     debugStartButton.addEventListener("click", () => {
       startGame({
