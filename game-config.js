@@ -175,47 +175,78 @@ window.YOKOSHOOT_CONFIG = {
     },
   },
 
+  // Story text is data-only so it can be edited without touching game logic.
+  // Each line controls the speaker name, portrait image, portrait side, and text together.
   dialogues: {
+    prologue: [
+      { speaker: "黒羽 凛", side: "left", portrait: "assets/dialogue-rin.png", line: "父さんの刀が、この学園にある。……よりによって学校？" },
+      { speaker: "雨宮 玄信の手紙", side: "left", portrait: "assets/dialogue-rin.png", line: "断界は、人を救うために打った。だが、救いの形を間違えれば刃は人を裁く。" },
+      { speaker: "黒羽 凛", side: "left", portrait: "assets/dialogue-rin.png", line: "回りくどい手紙。つまり、放っておくなってことでしょ。" },
+    ],
+    stage1Start: [
+      { speaker: "黒羽 凛", side: "left", portrait: "assets/dialogue-rin.png", line: "校門からドローンだらけ。歓迎が機械的すぎる。" },
+      { speaker: "黒羽 凛", side: "left", portrait: "assets/dialogue-rin-fired-up.png", line: "まずは一機、父さんの刀の匂いがするか確かめる。" },
+    ],
     midBoss: [
-      { speaker: "\u671d\u6bd4\u5948 \u3064\u3070\u3081", line: "\u3053\u3053\u304b\u3089\u5148\u306f\u30c6\u30cb\u30b9\u90e8\u306e\u30b3\u30fc\u30c8\u3088\u3002\u7121\u65ad\u3067\u901a\u3059\u308f\u3051\u306a\u3044\u3067\u3057\u3087\u3002" },
+      { dialogueInitialPortraits: "left", speaker: "黒羽 凛", portrait: "assets/dialogue-rin.png" },
+      { speaker: "朝比奈 つばめ", side: "right", portrait: "assets/dialogue-tsubame-midboss.png", line: "そこ、テニス部のコート。土足と刃物はアウトね。" },
+      { speaker: "黒羽 凛", side: "left", portrait: "assets/dialogue-rin.png", line: "ドローンはセーフなの？ 校則、ずいぶん器用だね。" },
     ],
     boss: [
-      { speaker: "\u671d\u6bd4\u5948 \u3064\u3070\u3081", line: "\u307e\u3060\u7acb\u3063\u3066\u308b\u306a\u3093\u3066\u306d\u3002\u6b21\u306f\u672c\u6c17\u306e\u30b9\u30de\u30c3\u30b7\u30e5\u3067\u6c88\u3081\u308b\u3002" },
-      { speaker: "\u9ed2\u7fbd \u51db", line: "\u5fa1\u9580\u9662\u3078\u7d9a\u304f\u9053\u3092\u3001\u3042\u306a\u305f\u3067\u6b62\u3081\u308b\u3064\u3082\u308a\u306f\u306a\u3044\u3002" },
+      { dialogueInitialPortraits: "left", speaker: "黒羽 凛", portrait: "assets/dialogue-rin.png" },
+      { speaker: "朝比奈 つばめ", side: "right", portrait: "assets/dialogue-tsubame-boss.png", line: "しつこい転校生。次は本気で返すよ。" },
+      { speaker: "黒羽 凛", side: "left", portrait: "assets/dialogue-rin-fired-up.png", line: "返球はいらない。通行許可だけ置いてって。" },
     ],
     bossDefeated: [
-      { speaker: "\u671d\u6bd4\u5948 \u3064\u3070\u3081", line: "\u53c2\u3063\u305f\u308f\u3002\u5148\u3078\u884c\u304d\u306a\u3055\u3044\u3002" },
-      { speaker: "\u9ed2\u7fbd \u51db", line: "\u3058\u3083\u3042\u3001\u901a\u3089\u305b\u3066\u3082\u3089\u3046\u3002" },
+      { dialogueInitialPortraits: "left", speaker: "黒羽 凛", portrait: "assets/dialogue-rin.png" },
+      { speaker: "朝比奈 つばめ", side: "right", portrait: "assets/dialogue-tsubame-defeated.png", line: "うわ、ほんとに突破するんだ……。" },
+      { speaker: "黒羽 凛", side: "left", portrait: "assets/dialogue-rin.png", line: "このドローンの核、ただの部品じゃない。断界の欠片だ。" },
+      { speaker: "黒羽 凛", side: "left", portrait: "assets/dialogue-rin-fired-up.png", line: "父さんの後始末、思ったより散らかってる。" },
+    ],
+    stage2Start: [
+      { speaker: "黒羽 凛", side: "left", portrait: "assets/dialogue-rin.png", line: "廊下までロボット清掃中。私もゴミ扱いかな。" },
+      { speaker: "校内放送", side: "right", portrait: "assets/dialogue-ritsuko-midboss.png", line: "未登録生徒は、すみやかに指導室へ出頭してください。" },
     ],
     stage2MidBoss: [
-      { speaker: "\u9b3c\u585a \u5f8b\u5b50", line: "\u5203\u7269\u306f\u6821\u5247\u9055\u53cd\uff01\u771f\u7434\u69d8\u306e\u3068\u3053\u308d\u3078\u306f\u884c\u304b\u305b\u306a\u3044" },
+      { dialogueInitialPortraits: "left", speaker: "黒羽 凛", portrait: "assets/dialogue-rin.png" },
+      { speaker: "鬼塚 律子", side: "right", portrait: "assets/dialogue-ritsuko-midboss.png", line: "刃物！ 廊下疾走！ 未登録！ 校則三倍満です！" },
+      { speaker: "黒羽 凛", side: "left", portrait: "assets/dialogue-rin.png", line: "点数制なの？ じゃあ満点まで付き合う。" },
     ],
     stage2Boss: [
-      { speaker: "\u4e00\u6587\u5b57 \u5c0f\u591c", line: "\u3042\u306e\u5973\u306e\u3068\u3053\u308d\u306f\u3001\u79c1\u3068\u306e\u6c7a\u7740\u3064\u3051\u3066\u304b\u3089\u884c\u3051\uff01" },
-      { speaker: "\u9ed2\u7fbd \u51db", line: "5\u56de\u306f\u7740\u3044\u3066\u308b\u3068\u304a\u3082\u3046\u3051\u3069\u3001\u6c7a\u7740" },
-      { speaker: "\u4e00\u6587\u5b57 \u5c0f\u591c", line: "\u3082\u30461\u56de\u304f\u3089\u3044\u7740\u3051\u3066\u3051\uff01" },
+      { dialogueInitialPortraits: "left", speaker: "黒羽 凛", portrait: "assets/dialogue-rin.png" },
+      { speaker: "一文字 小夜", side: "right", portrait: "assets/dialogue-sayo-boss.png", line: "あんた、御門院まで行く気？ その前に私と決着。" },
+      { speaker: "黒羽 凛", side: "left", portrait: "assets/dialogue-rin.png", line: "前にも決着って言ってなかった？" },
+      { speaker: "一文字 小夜", side: "right", portrait: "assets/dialogue-sayo-boss.png", line: "言った。足りなかった。もう一回。" },
     ],
     stage2BossDefeated: [
-      { speaker: "\u4e00\u6587\u5b57 \u5c0f\u591c", line: "\u304f\u305d\u3063\u3001\u4eca\u5ea6\u3053\u305d\u6c7a\u7740\u3064\u3044\u305f\u3068\u601d\u3046\u306a\u3088\uff01" },
-      { speaker: "\u9ed2\u7fbd \u51db", line: "\u305d\u308c\u3001\u524d\u3082\u805e\u3044\u305f\u3002" },
+      { dialogueInitialPortraits: "left", speaker: "黒羽 凛", portrait: "assets/dialogue-rin.png" },
+      { speaker: "一文字 小夜", side: "right", portrait: "assets/dialogue-sayo-defeated.png", line: "奥に行くなら気をつけな。御門院の養子、かなり面倒だよ。" },
+      { speaker: "黒羽 凛", side: "left", portrait: "assets/dialogue-rin.png", line: "ここまで全員面倒だったから、今さらかな。" },
     ],
     stage3Start: [
-      { dialogueInitialPortraits: "left", speaker: "\u9ed2\u7fbd \u51db", portrait: "assets/dialogue-rin-fired-up.png" },
-      { speaker: "\u9ed2\u7fbd \u51db", side: "left", portrait: "assets/dialogue-rin-fired-up.png", line: "\u5fa1\u9580\u9662\u306e\u4e2d\u5fc3\u307e\u3067\u3001\u3082\u3046\u5c11\u3057\u3002\u3053\u3053\u3067\u6b62\u307e\u308b\u308f\u3051\u306b\u306f\u3044\u304b\u306a\u3044\u3002" },
+      { dialogueInitialPortraits: "left", speaker: "黒羽 凛", portrait: "assets/dialogue-rin.png" },
+      { speaker: "御門院 真澄", side: "right", portrait: "assets/dialogue-stage3-masumi-midboss.png", line: "ここから先は戻れない。……引き返すなら今だよ。" },
+      { speaker: "黒羽 凛", side: "left", portrait: "assets/dialogue-rin.png", line: "忠告にしては、ずいぶん出口を塞いでる。" },
+      { speaker: "御門院 真澄", side: "right", portrait: "assets/dialogue-stage3-masumi-midboss.png", line: "そう。私は親切な案内係じゃないから。" },
     ],
     stage3MidBoss: [
-      { dialogueInitialPortraits: "left", speaker: "\u9ed2\u7fbd \u51db", portrait: "assets/dialogue-rin.png" },
-      { speaker: "\u5fa1\u9580\u9662 \u771f\u6f84", side: "right", portrait: "assets/dialogue-stage3-masumi-midboss.png", line: "\u3053\u3053\u304b\u3089\u5148\u306f\u623b\u308c\u306a\u3044\u3002\u65ad\u754c\u306e\u7834\u7247\u304c\u3001\u3042\u306a\u305f\u3092\u8a66\u3059\u308f\u3002" },
-      { speaker: "\u9ed2\u7fbd \u51db", side: "left", portrait: "assets/dialogue-rin.png", line: "\u8a66\u3055\u308c\u308b\u306e\u306f\u597d\u304d\u3058\u3083\u306a\u3044\u3002\u3067\u3082\u3001\u901a\u308b\u3002" },
+      { dialogueInitialPortraits: "left", speaker: "黒羽 凛", portrait: "assets/dialogue-rin.png" },
+      { speaker: "御門院 真澄", side: "right", portrait: "assets/dialogue-stage3-masumi-midboss.png", line: "私は養子で、実験体。どっちも好きで選んだ名前じゃない。" },
+      { speaker: "黒羽 凛", side: "left", portrait: "assets/dialogue-rin.png", line: "だったら、どうして邪魔するの。" },
+      { speaker: "御門院 真澄", side: "right", portrait: "assets/dialogue-stage3-masumi-midboss.png", line: "あなたが断界を知れば、たぶん止まれない。私みたいに。" },
     ],
     stage3Boss: [
-      { dialogueInitialPortraits: "left", speaker: "\u9ed2\u7fbd \u51db", portrait: "assets/dialogue-rin-fired-up.png" },
-      { speaker: "\u5fa1\u9580\u9662 \u6714\u591c", side: "right", portrait: "assets/dialogue-stage3-sakuya-boss.png", line: "\u3053\u306e\u30db\u30fc\u30eb\u304c\u7d42\u70b9\u3060\u3002\u51db\u3001\u304a\u524d\u306e\u5203\u306f\u3053\u3053\u3067\u6298\u308b\u3002" },
-      { speaker: "\u9ed2\u7fbd \u51db", side: "left", portrait: "assets/dialogue-rin-fired-up.png", line: "\u6298\u308c\u308b\u306e\u306f\u3001\u305d\u306e\u88c5\u7532\u306e\u307b\u3046\u3002" },
-      { speaker: "\u5fa1\u9580\u9662 \u771f\u6f84", side: "right", portrait: "assets/dialogue-stage3-masumi-damage.png", line: "\u59c9\u69d8\u3001\u65ad\u754c\u304c\u63fa\u308c\u3066\u3044\u308b\u3002" },
+      { dialogueInitialPortraits: "left", speaker: "黒羽 凛", portrait: "assets/dialogue-rin-fired-up.png" },
+      { speaker: "御門院 朔夜", side: "right", portrait: "assets/dialogue-stage3-sakuya-boss.png", line: "玄信の娘か。ずいぶん乱暴に門を叩いたものだ。" },
+      { speaker: "黒羽 凛", side: "left", portrait: "assets/dialogue-rin-fired-up.png", line: "チャイムが見当たらなかったので。父さんの刀を返して。" },
+      { speaker: "御門院 朔夜", side: "right", portrait: "assets/dialogue-stage3-sakuya-boss.png", line: "断界は救済だ。弱さを切れば、人は苦しまない。" },
+      { speaker: "黒羽 凛", side: "left", portrait: "assets/dialogue-rin-fired-up.png", line: "苦しいって言えない人を増やしてるだけでしょ。" },
     ],
     finalBossDefeated: [
-      { speaker: "\u5fa1\u9580\u9662 \u6714\u591c", side: "right", portrait: "assets/dialogue-stage3-sakuya-damage.png", line: "\u307e\u3055\u304b\u3001\u3053\u3053\u307e\u3067\u8010\u3048\u308b\u3068\u306f\u306a\u3002" },
-      { speaker: "\u9ed2\u7fbd \u51db", side: "left", portrait: "assets/dialogue-rin-defeated.png", line: "\u3053\u308c\u3067\u3001\u7d42\u308f\u308a\u3002" },
+      { dialogueInitialPortraits: "left", speaker: "黒羽 凛", portrait: "assets/dialogue-rin.png" },
+      { speaker: "御門院 朔夜", side: "right", portrait: "assets/dialogue-stage3-sakuya-damage.png", line: "玄信……お前の娘は、弱さを残すのか。" },
+      { speaker: "黒羽 凛", side: "left", portrait: "assets/dialogue-rin.png", line: "残す。勝手に切らせない。" },
+      { speaker: "御門院 真澄", side: "right", portrait: "assets/dialogue-stage3-masumi-damage.png", line: "……それ、少しだけ信じてみる。" },
     ],
-  },};
+  },
+};
