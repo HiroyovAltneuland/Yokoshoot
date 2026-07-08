@@ -7,6 +7,7 @@
     ritsukoBossSprite: "assets/ritsuko-boss-sprite-sheet.png",
     sayoBossSprite: "assets/sayo-boss-sprite-sheet.png",
     masumiBossSprite: "assets/masumi-midboss-sprite-sheet.png",
+    masumiBoundaryFragmentSprite: "assets/masumi-boundary-fragment-sprite-sheet.png",
     sakuyaBossSprite: "assets/sakuya-boss-sprite-sheet.png",
     stageOneEnemySprite: "assets/stage1-enemy-sprite-sheet.png",
     stageTwoEnemySprite: "assets/stage2-enemy-sprite-sheet.png",

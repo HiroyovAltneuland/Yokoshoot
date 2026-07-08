@@ -103,6 +103,9 @@
   const BOSS_SPRITE_ROWS = 2;
   const BOSS_SPRITE_DRAW_SIZE = 172;
   const MASUMI_BOSS_SPRITE_DRAW_SIZE = 184;
+  const MASUMI_FRAGMENT_SPRITE_COLUMNS = 5;
+  const MASUMI_FRAGMENT_SPRITE_DRAW_WIDTH = 58;
+  const MASUMI_FRAGMENT_SPRITE_DRAW_HEIGHT = 70;
   const SAKUYA_BOSS_SPRITE_COLUMNS = 3;
   const SAKUYA_BOSS_SPRITE_ROWS = 5;
   const SAKUYA_BOSS_SPRITE_DRAW_SIZE = 232;
@@ -216,6 +219,7 @@
     ritsukoBossSprite,
     sayoBossSprite,
     masumiBossSprite,
+    masumiBoundaryFragmentSprite,
     sakuyaBossSprite,
     stageOneEnemySprite,
     stageTwoEnemySprite,
@@ -1099,7 +1103,8 @@
     boss.masumiShotTimer = intense ? 0.16 : 0.32;
     const fragment = boss.fragments[boss.masumiShotIndex % boss.fragments.length];
     boss.masumiShotIndex += 1;
-    launchMasumiFragment(fragment, Math.PI, intense ? 430 : 340, intense ? "rush" : "straight");
+    const target = getMasumiFragmentTarget(fragment);
+    launchMasumiFragment(fragment, target.angle, intense ? 540 : 460, intense ? "rush" : "straight", target);
     playShotSound("bossSmash");
   }
 
@@ -1113,8 +1118,8 @@
     boss.masumiShotTimer = intense ? 0.11 : 0.23;
     const fragment = boss.fragments[boss.masumiRushIndex % boss.fragments.length];
     boss.masumiRushIndex += 1;
-    const angle = Math.atan2(playerHurtPoint().y - fragment.y, playerHurtPoint().x - fragment.x);
-    launchMasumiFragment(fragment, angle, intense ? 500 : 390, "rush");
+    const target = getMasumiFragmentTarget(fragment);
+    launchMasumiFragment(fragment, target.angle, intense ? 620 : 520, "rush", target);
     playShotSound("bossSmash");
     if (boss.masumiRushIndex % boss.fragments.length === 0) boss.masumiSpinTimer = 0;
   }
@@ -1136,11 +1141,29 @@
     for (const fragment of boss.fragments) fragment.mode = boss.laserActive ? "gather" : "home";
   }
 
-  function launchMasumiFragment(fragment, angle, speed, mode) {
+  function getMasumiFragmentTarget(fragment) {
+    const target = playerHurtPoint();
+    const dx = target.x - fragment.x;
+    const dy = target.y - fragment.y;
+    const distanceToTarget = Math.hypot(dx, dy) || 1;
+    return {
+      x: target.x,
+      y: target.y,
+      distance: distanceToTarget,
+      angle: Math.atan2(dy, dx),
+    };
+  }
+
+  function launchMasumiFragment(fragment, angle, speed, mode, target = null) {
     fragment.mode = mode;
     fragment.timer = 0;
     fragment.vx = Math.cos(angle) * speed;
     fragment.vy = Math.sin(angle) * speed;
+    fragment.targetX = target ? target.x : null;
+    fragment.targetY = target ? target.y : null;
+    fragment.returnAfter = target
+      ? clamp(target.distance / speed + (mode === "rush" ? 0.42 : 0.34), 0.95, mode === "rush" ? 2.25 : 2.05)
+      : mode === "rush" ? 1.1 : 0.85;
   }
 
   function updateMasumiFragments(boss, dt, spin) {
@@ -1152,9 +1175,13 @@
       if (fragment.mode === "straight" || fragment.mode === "rush") {
         fragment.x += fragment.vx * dt;
         fragment.y += fragment.vy * dt;
-        if (fragment.timer > (fragment.mode === "rush" ? 0.95 : 0.75) || fragment.x < 18 || fragment.y < 8 || fragment.y > HEIGHT - 8) {
+        const passedTarget = Number.isFinite(fragment.targetX) && fragment.x <= fragment.targetX - 34;
+        const timedOut = fragment.timer > (fragment.returnAfter || (fragment.mode === "rush" ? 1.1 : 0.85));
+        if (passedTarget || timedOut || fragment.x < 18 || fragment.y < 8 || fragment.y > HEIGHT - 8) {
           fragment.mode = "return";
           fragment.timer = 0;
+          fragment.targetX = null;
+          fragment.targetY = null;
         }
       } else if (fragment.mode === "gather") {
         const offset = (fragment.index - 4.5) * 2.4;
@@ -3366,10 +3393,14 @@
     for (const fragment of boss.fragments) {
       const x = fragment.x - boss.x;
       const y = fragment.y - boss.y;
-      const angle = state.elapsed * 4 + fragment.index;
+      const angle = getMasumiFragmentDrawAngle(fragment);
       ctx.save();
       ctx.translate(x, y);
       ctx.rotate(angle);
+      if (drawMasumiFragmentSprite(fragment)) {
+        ctx.restore();
+        continue;
+      }
       ctx.fillStyle = fragment.mode === "home" || fragment.mode === "return" ? "rgba(175, 240, 255, 0.88)" : "#ffffff";
       ctx.strokeStyle = "#6b6dff";
       ctx.lineWidth = 2;
@@ -3383,6 +3414,34 @@
       ctx.stroke();
       ctx.restore();
     }
+  }
+
+  function getMasumiFragmentDrawAngle(fragment) {
+    if (fragment.mode === "straight" || fragment.mode === "rush") {
+      return Math.atan2(fragment.vy, fragment.vx) - Math.PI * 0.78;
+    }
+    return state.elapsed * 0.75 + fragment.index * 0.63 - Math.PI * 0.2;
+  }
+
+  function drawMasumiFragmentSprite(fragment) {
+    if (!masumiBoundaryFragmentSprite.complete || masumiBoundaryFragmentSprite.naturalWidth === 0) return false;
+    const frame = Math.floor(state.elapsed * 12 + fragment.index * 1.7) % MASUMI_FRAGMENT_SPRITE_COLUMNS;
+    const sourceWidth = masumiBoundaryFragmentSprite.naturalWidth / MASUMI_FRAGMENT_SPRITE_COLUMNS;
+    const sourceHeight = masumiBoundaryFragmentSprite.naturalHeight;
+    const alpha = fragment.mode === "home" || fragment.mode === "return" ? 0.9 : 1;
+    ctx.globalAlpha *= alpha;
+    ctx.drawImage(
+      masumiBoundaryFragmentSprite,
+      frame * sourceWidth,
+      0,
+      sourceWidth,
+      sourceHeight,
+      -MASUMI_FRAGMENT_SPRITE_DRAW_WIDTH * 0.5,
+      -MASUMI_FRAGMENT_SPRITE_DRAW_HEIGHT * 0.5,
+      MASUMI_FRAGMENT_SPRITE_DRAW_WIDTH,
+      MASUMI_FRAGMENT_SPRITE_DRAW_HEIGHT
+    );
+    return true;
   }
 
   function drawMasumiLaserLocal(boss) {
