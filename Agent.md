@@ -367,3 +367,32 @@ Use stage phase values for in-game progression:
 - Review each pull request before merging.
 - Publish the playable game with GitHub Pages.
 - Keep the default branch deployable.
+
+## Codex Work Safety Rules
+
+Use a lightweight default workflow, and escalate only when risk signals appear. This keeps token and command usage low while still preventing accidental regressions.
+
+Default workflow:
+
+- Start with `git status --short --branch`.
+- Read and edit only the files needed for the task.
+- Stage files explicitly with `git add -- <path>`. Do not use `git add .`.
+- Before committing, check staged paths with `git diff --cached --name-only`.
+- Run only the verification that is relevant to the change.
+
+Escalate to a more careful workflow when any of these are true:
+
+- The target file already has uncommitted changes.
+- The task touches multiple files.
+- The task edits Japanese text, dialogue data, or file encoding.
+- The task affects deployment, GitHub Pages, or workflow files.
+- The user reports a regression, data loss, mojibake, or asks to restore prior behavior.
+
+In careful workflow:
+
+- Read the target file diff before editing.
+- Consider using a `codex/<topic>` branch for multi-file or risky changes.
+- Do not stash by default. If stashing is necessary, explain why and prefer path-limited stash.
+- For Japanese text files, check for `\uXXXX` escapes and mojibake-like text after editing.
+- For JavaScript files, run a syntax check.
+- Before push, inspect staged content with `git diff --cached` when the change is not trivial.
