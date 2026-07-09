@@ -106,6 +106,8 @@
   const MASUMI_FRAGMENT_SPRITE_COLUMNS = 5;
   const MASUMI_FRAGMENT_SPRITE_DRAW_WIDTH = 58;
   const MASUMI_FRAGMENT_SPRITE_DRAW_HEIGHT = 70;
+  const MASUMI_LASER_SWEEP_RADIANS = 330 * Math.PI / 180;
+  const MASUMI_LASER_START_ANGLE = Math.PI + 15 * Math.PI / 180;
   const SAKUYA_BOSS_SPRITE_COLUMNS = 3;
   const SAKUYA_BOSS_SPRITE_ROWS = 5;
   const SAKUYA_BOSS_SPRITE_DRAW_SIZE = 232;
@@ -1131,7 +1133,8 @@
     const cycleSeconds = activeSeconds + restSeconds;
     if (boss.masumiLaserCycle >= cycleSeconds) boss.masumiLaserCycle -= cycleSeconds;
     boss.laserActive = boss.masumiLaserCycle < activeSeconds;
-    boss.laserAngle = (boss.masumiLaserCycle / activeSeconds) * Math.PI * 2 * (intense ? 1.35 : 1);
+    const sweepProgress = clamp(boss.masumiLaserCycle / activeSeconds, 0, 1);
+    boss.laserAngle = MASUMI_LASER_START_ANGLE + sweepProgress * MASUMI_LASER_SWEEP_RADIANS;
     boss.laserWidth = intense ? 24 : 18;
     if (boss.laserActive && !boss.laserSoundGate) {
       boss.laserSoundGate = true;
@@ -1766,9 +1769,8 @@
     const length = 920;
     const angle = boss.laserAngle || 0;
     const end = { x: hand.x + Math.cos(angle) * length, y: hand.y + Math.sin(angle) * length };
-    const reverseEnd = { x: hand.x - Math.cos(angle) * length, y: hand.y - Math.sin(angle) * length };
     const width = (boss.laserWidth || 18) + PLAYER_HURT_RADIUS * 0.5;
-    return pointSegmentDistance(point, hand, end) < width || pointSegmentDistance(point, hand, reverseEnd) < width;
+    return pointSegmentDistance(point, hand, end) < width;
   }
 
   function pointSegmentDistance(point, start, end) {
@@ -3397,6 +3399,7 @@
       ctx.save();
       ctx.translate(x, y);
       ctx.rotate(angle);
+      drawMasumiFragmentAttackAura(fragment);
       if (drawMasumiFragmentSprite(fragment)) {
         ctx.restore();
         continue;
@@ -3418,9 +3421,44 @@
 
   function getMasumiFragmentDrawAngle(fragment) {
     if (fragment.mode === "straight" || fragment.mode === "rush") {
-      return Math.atan2(fragment.vy, fragment.vx) - Math.PI * 0.78;
+      const target = playerHurtPoint();
+      return Math.atan2(target.y - fragment.y, target.x - fragment.x) - Math.PI * 0.78;
     }
     return state.elapsed * 0.75 + fragment.index * 0.63 - Math.PI * 0.2;
+  }
+
+  function drawMasumiFragmentAttackAura(fragment) {
+    if (
+      (fragment.mode !== "straight" && fragment.mode !== "rush") ||
+      !masumiBoundaryFragmentSprite.complete ||
+      masumiBoundaryFragmentSprite.naturalWidth === 0
+    ) return;
+
+    const frame = Math.floor(state.elapsed * 12 + fragment.index * 1.7) % MASUMI_FRAGMENT_SPRITE_COLUMNS;
+    const sourceWidth = masumiBoundaryFragmentSprite.naturalWidth / MASUMI_FRAGMENT_SPRITE_COLUMNS;
+    const sourceHeight = masumiBoundaryFragmentSprite.naturalHeight;
+    const pulse = 0.5 + Math.sin(state.elapsed * 18 + fragment.index * 1.9) * 0.5;
+    ctx.save();
+    ctx.globalCompositeOperation = "lighter";
+    ctx.filter = "blur(4px)";
+    for (let layer = 0; layer < 3; layer += 1) {
+      const scale = 1.16 + layer * 0.13 + pulse * 0.08;
+      const width = MASUMI_FRAGMENT_SPRITE_DRAW_WIDTH * scale;
+      const height = MASUMI_FRAGMENT_SPRITE_DRAW_HEIGHT * scale;
+      ctx.globalAlpha = 0.2 - layer * 0.035;
+      ctx.drawImage(
+        masumiBoundaryFragmentSprite,
+        frame * sourceWidth,
+        0,
+        sourceWidth,
+        sourceHeight,
+        -width * 0.5,
+        -height * 0.5,
+        width,
+        height
+      );
+    }
+    ctx.restore();
   }
 
   function drawMasumiFragmentSprite(fragment) {
@@ -3457,13 +3495,13 @@
     ctx.strokeStyle = "rgba(164, 247, 255, 0.32)";
     ctx.lineWidth = (boss.laserWidth || 18) * 2.2;
     ctx.beginPath();
-    ctx.moveTo(-920, 0);
+    ctx.moveTo(0, 0);
     ctx.lineTo(920, 0);
     ctx.stroke();
     ctx.strokeStyle = "rgba(255, 255, 255, 0.92)";
     ctx.lineWidth = Math.max(3, (boss.laserWidth || 18) * 0.42);
     ctx.beginPath();
-    ctx.moveTo(-920, 0);
+    ctx.moveTo(0, 0);
     ctx.lineTo(920, 0);
     ctx.stroke();
     ctx.restore();
