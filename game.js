@@ -106,8 +106,11 @@
   const MASUMI_FRAGMENT_SPRITE_COLUMNS = 5;
   const MASUMI_FRAGMENT_SPRITE_DRAW_WIDTH = 58;
   const MASUMI_FRAGMENT_SPRITE_DRAW_HEIGHT = 70;
-  const MASUMI_LASER_SWEEP_RADIANS = 330 * Math.PI / 180;
-  const MASUMI_LASER_START_ANGLE = Math.PI + 15 * Math.PI / 180;
+  const MASUMI_MIDBOSS_HP_MULTIPLIER = 1.3;
+  const MASUMI_LASER_SINGLE_SWEEP_RADIANS = 286 * Math.PI / 180;
+  const MASUMI_LASER_DOUBLE_SWEEP_RADIANS = 238 * Math.PI / 180;
+  const MASUMI_LASER_START_ANGLE = Math.PI + 36 * Math.PI / 180;
+  const MASUMI_DOUBLE_LASER_SPREAD = 58 * Math.PI / 180;
   const SAKUYA_BOSS_SPRITE_COLUMNS = 3;
   const SAKUYA_BOSS_SPRITE_ROWS = 5;
   const SAKUYA_BOSS_SPRITE_DRAW_SIZE = 232;
@@ -685,7 +688,7 @@
 
   function setStageThreePhase(phase) {
     if (phase === "midBoss") {
-      state.boss = makeBoss("\u5fa1\u9580\u9662 \u771f\u6f84", STAGE_THREE_PLAN.midBossTarget, 0);
+      state.boss = makeBoss("\u5fa1\u9580\u9662 \u771f\u6f84", Math.round(STAGE_THREE_PLAN.midBossTarget * MASUMI_MIDBOSS_HP_MULTIPLIER), 0);
       initializeMasumiBoss(state.boss);
       state.message = "\u4e2d\u30dc\u30b9 \u5fa1\u9580\u9662\u771f\u6f84";
     } else if (phase === "boss") {
@@ -1040,6 +1043,7 @@
     boss.masumiPhase = 1;
     boss.masumiShotIndex = 0;
     boss.masumiShotTimer = 0.35;
+    boss.masumiEightWayAngle = 0;
     boss.masumiSpinTimer = 0;
     boss.masumiRushIndex = 0;
     boss.masumiLaserCycle = 0;
@@ -1088,14 +1092,27 @@
   function updateMasumiBoss(boss, dt, intense) {
     const previousPhase = boss.masumiPhase || 1;
     const hpRatio = boss.hp / boss.maxHp;
-    boss.masumiPhase = hpRatio <= 1 / 3 ? 3 : hpRatio <= 2 / 3 ? 2 : 1;
-    if (boss.masumiPhase !== previousPhase && !intense) {
-      state.message = boss.masumiPhase === 2 ? "\u771f\u6f84 \u7834\u7247\u8ffd\u6483" : "\u771f\u6f84 \u65ad\u754c\u30ec\u30fc\u30b6\u30fc";
+    boss.masumiPhase = hpRatio <= 1 / 4 ? 4 : hpRatio <= 1 / 2 ? 3 : hpRatio <= 3 / 4 ? 2 : 1;
+    if (boss.masumiPhase !== previousPhase) {
+      boss.masumiLaserCycle = 0;
+      boss.laserSoundGate = false;
+      boss.laserActive = false;
+      if (!intense) {
+        state.message = [
+          "",
+          "",
+          "\u771f\u6f84 \u7834\u7247\u8ffd\u6483",
+          "\u771f\u6f84 \u65ad\u754c\u30ec\u30fc\u30b6\u30fc",
+          "\u771f\u6f84 \u53cc\u65ad\u30ec\u30fc\u30b6\u30fc",
+        ][boss.masumiPhase] || "";
+      }
     }
     if (boss.masumiPhase === 1) updateMasumiStraightPattern(boss, dt, intense);
     else if (boss.masumiPhase === 2) updateMasumiRushPattern(boss, dt, intense);
-    else updateMasumiLaserPattern(boss, dt, intense);
-    updateMasumiFragments(boss, dt, boss.masumiPhase === 2 ? boss.masumiSpinTimer * (intense ? 7 : 4.4) : state.elapsed * 0.6);
+    else updateMasumiLaserPattern(boss, dt, intense, boss.masumiPhase === 4);
+    boss.invincible = !!boss.laserActive;
+    const spinSpeed = boss.masumiPhase === 2 ? boss.masumiSpinTimer * (intense ? 7 : 4.4) : state.elapsed * (boss.masumiPhase >= 3 ? 1.15 : 0.6);
+    updateMasumiFragments(boss, dt, spinSpeed);
   }
 
   function updateMasumiStraightPattern(boss, dt, intense) {
@@ -1107,6 +1124,7 @@
     boss.masumiShotIndex += 1;
     const target = getMasumiFragmentTarget(fragment);
     launchMasumiFragment(fragment, target.angle, intense ? 540 : 460, intense ? "rush" : "straight", target);
+    shootMasumiEightWay(boss, fragment, intense ? 190 : 145);
     playShotSound("bossSmash");
   }
 
@@ -1122,20 +1140,43 @@
     boss.masumiRushIndex += 1;
     const target = getMasumiFragmentTarget(fragment);
     launchMasumiFragment(fragment, target.angle, intense ? 620 : 520, "rush", target);
+    shootMasumiEightWay(boss, fragment, intense ? 220 : 175);
     playShotSound("bossSmash");
     if (boss.masumiRushIndex % boss.fragments.length === 0) boss.masumiSpinTimer = 0;
   }
 
-  function updateMasumiLaserPattern(boss, dt, intense) {
+  function shootMasumiEightWay(boss, fragment, speed) {
+    const baseAngle = boss.masumiEightWayAngle || 0;
+    for (let index = 0; index < 8; index += 1) {
+      const angle = baseAngle + index * Math.PI / 4;
+      state.enemyBullets.push({
+        x: fragment.x,
+        y: fragment.y,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed,
+        kind: "masumiFragmentBurst",
+        spin: 0,
+        r: 7,
+      });
+    }
+    boss.masumiEightWayAngle = (baseAngle + Math.PI / 24) % (Math.PI * 2);
+  }
+
+  function updateMasumiLaserPattern(boss, dt, intense, doubleLaser = false) {
     boss.masumiLaserCycle = (boss.masumiLaserCycle || 0) + dt;
-    const activeSeconds = intense ? 5.6 : 5;
-    const restSeconds = intense ? 2.2 : 3;
+    const activeSeconds = doubleLaser ? (intense ? 4.25 : 4.6) : (intense ? 4.65 : 4.95);
+    const restSeconds = doubleLaser ? (intense ? 1.45 : 1.65) : (intense ? 1.55 : 1.85);
     const cycleSeconds = activeSeconds + restSeconds;
     if (boss.masumiLaserCycle >= cycleSeconds) boss.masumiLaserCycle -= cycleSeconds;
     boss.laserActive = boss.masumiLaserCycle < activeSeconds;
     const sweepProgress = clamp(boss.masumiLaserCycle / activeSeconds, 0, 1);
-    boss.laserAngle = MASUMI_LASER_START_ANGLE + sweepProgress * MASUMI_LASER_SWEEP_RADIANS;
-    boss.laserWidth = intense ? 24 : 18;
+    const sweep = doubleLaser ? MASUMI_LASER_DOUBLE_SWEEP_RADIANS : MASUMI_LASER_SINGLE_SWEEP_RADIANS;
+    const angle = MASUMI_LASER_START_ANGLE + sweepProgress * sweep;
+    boss.laserAngle = angle;
+    boss.laserAngles = doubleLaser
+      ? [angle - MASUMI_DOUBLE_LASER_SPREAD * 0.5, angle + MASUMI_DOUBLE_LASER_SPREAD * 0.5]
+      : [angle];
+    boss.laserWidth = doubleLaser ? (intense ? 16 : 13) : (intense ? 19 : 15);
     if (boss.laserActive && !boss.laserSoundGate) {
       boss.laserSoundGate = true;
       playShotSound("swordWave");
@@ -1204,6 +1245,7 @@
       boss.sakuyaPhase = nextPhase;
       boss.fireTimer = 0.2;
       boss.sakuyaSubTimer = 0.45;
+      if (nextPhase === 3) initializeSakuyaMasumiPhase(boss);
       state.message = [
         "\u6714\u591c \u3064\u3070\u3081\u5f37\u5316",
         "\u6714\u591c \u5f8b\u5b50\u5f37\u5316",
@@ -1224,6 +1266,16 @@
     } else {
       updateSakuyaBlackHolePhase(boss, dt);
     }
+  }
+
+  function initializeSakuyaMasumiPhase(boss) {
+    boss.fragments = makeMasumiFragments(boss);
+    boss.masumiShotIndex = 0;
+    boss.masumiShotTimer = 0;
+    boss.masumiEightWayAngle = 0;
+    boss.masumiSpinTimer = 0;
+    boss.masumiRushIndex = 0;
+    boss.laserActive = false;
   }
 
   function getSakuyaPhaseIndex(boss) {
@@ -1767,10 +1819,12 @@
   function isPointInMasumiLaser(boss, point) {
     const hand = getMasumiHandPoint(boss);
     const length = 920;
-    const angle = boss.laserAngle || 0;
-    const end = { x: hand.x + Math.cos(angle) * length, y: hand.y + Math.sin(angle) * length };
+    const angles = boss.laserAngles && boss.laserAngles.length ? boss.laserAngles : [boss.laserAngle || 0];
     const width = (boss.laserWidth || 18) + PLAYER_HURT_RADIUS * 0.5;
-    return pointSegmentDistance(point, hand, end) < width;
+    return angles.some((angle) => {
+      const end = { x: hand.x + Math.cos(angle) * length, y: hand.y + Math.sin(angle) * length };
+      return pointSegmentDistance(point, hand, end) < width;
+    });
   }
 
   function pointSegmentDistance(point, start, end) {
@@ -3340,6 +3394,7 @@
     if (!(boss.kind === "sakuya" && boss.sakuyaPhase === 4)) drawMasumiFragmentsLocal(boss);
     if (boss.kind === "masumi") {
       drawMasumiLaserLocal(boss);
+      if (boss.laserActive) drawMasumiInvincibleAuraLocal(boss);
       if (drawMasumiBossSprite(boss)) return true;
       drawMasumiFallback(boss);
       return true;
@@ -3440,12 +3495,12 @@
     const pulse = 0.5 + Math.sin(state.elapsed * 18 + fragment.index * 1.9) * 0.5;
     ctx.save();
     ctx.globalCompositeOperation = "lighter";
-    ctx.filter = "blur(4px)";
-    for (let layer = 0; layer < 3; layer += 1) {
-      const scale = 1.16 + layer * 0.13 + pulse * 0.08;
+    for (let layer = 0; layer < 5; layer += 1) {
+      const scale = 1.2 + layer * 0.18 + pulse * 0.1;
       const width = MASUMI_FRAGMENT_SPRITE_DRAW_WIDTH * scale;
       const height = MASUMI_FRAGMENT_SPRITE_DRAW_HEIGHT * scale;
-      ctx.globalAlpha = 0.2 - layer * 0.035;
+      ctx.filter = "blur(" + (5 + layer * 2) + "px)";
+      ctx.globalAlpha = 0.34 - layer * 0.045;
       ctx.drawImage(
         masumiBoundaryFragmentSprite,
         frame * sourceWidth,
@@ -3458,6 +3513,14 @@
         height
       );
     }
+    ctx.filter = "blur(2px)";
+    ctx.globalAlpha = 0.42 + pulse * 0.22;
+    ctx.strokeStyle = "rgba(142, 251, 255, 0.95)";
+    ctx.lineWidth = 5;
+    ctx.beginPath();
+    ctx.moveTo(-MASUMI_FRAGMENT_SPRITE_DRAW_WIDTH * 0.72, 0);
+    ctx.lineTo(MASUMI_FRAGMENT_SPRITE_DRAW_WIDTH * 0.78, 0);
+    ctx.stroke();
     ctx.restore();
   }
 
@@ -3487,22 +3550,63 @@
     const hand = getMasumiHandPoint(boss);
     const x = hand.x - boss.x;
     const y = hand.y - boss.y;
-    const angle = boss.laserAngle || 0;
+    const angles = boss.laserAngles && boss.laserAngles.length ? boss.laserAngles : [boss.laserAngle || 0];
+    const width = boss.laserWidth || 18;
+    const pulse = 0.5 + Math.sin(state.elapsed * 22) * 0.5;
+    for (const angle of angles) {
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(angle);
+      ctx.globalCompositeOperation = "lighter";
+      for (let layer = 0; layer < 4; layer += 1) {
+        ctx.filter = "blur(" + (8 + layer * 5) + "px)";
+        ctx.strokeStyle = layer % 2 === 0 ? "rgba(102, 242, 255, 0.24)" : "rgba(182, 133, 255, 0.16)";
+        ctx.lineWidth = width * (2.55 + layer * 1.12 + pulse * 0.22);
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.lineTo(920, 0);
+        ctx.stroke();
+      }
+      ctx.filter = "blur(3px)";
+      ctx.strokeStyle = "rgba(182, 250, 255, 0.62)";
+      ctx.lineWidth = width * 1.02;
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.lineTo(920, 0);
+      ctx.stroke();
+      ctx.filter = "blur(1px)";
+      ctx.strokeStyle = "rgba(255, 255, 255, 0.82)";
+      ctx.lineWidth = Math.max(3, width * 0.32);
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.lineTo(920, 0);
+      ctx.stroke();
+      ctx.restore();
+    }
+  }
+
+  function drawMasumiInvincibleAuraLocal(boss) {
+    const pulse = 0.5 + Math.sin(state.elapsed * 14) * 0.5;
     ctx.save();
-    ctx.translate(x, y);
-    ctx.rotate(angle);
     ctx.globalCompositeOperation = "lighter";
-    ctx.strokeStyle = "rgba(164, 247, 255, 0.32)";
-    ctx.lineWidth = (boss.laserWidth || 18) * 2.2;
+    for (let layer = 0; layer < 4; layer += 1) {
+      const radiusX = 46 + layer * 12 + pulse * 5;
+      const radiusY = 76 + layer * 16 + pulse * 7;
+      const gradient = ctx.createRadialGradient(-10, -8, 8, -10, -8, radiusY);
+      gradient.addColorStop(0, "rgba(255, 255, 255, 0)");
+      gradient.addColorStop(0.42, layer % 2 === 0 ? "rgba(114, 249, 255, 0.2)" : "rgba(183, 129, 255, 0.16)");
+      gradient.addColorStop(1, "rgba(114, 249, 255, 0)");
+      ctx.fillStyle = gradient;
+      ctx.globalAlpha = 0.7 - layer * 0.1;
+      ctx.beginPath();
+      ctx.ellipse(-10, -8, radiusX, radiusY, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.filter = "blur(6px)";
+    ctx.strokeStyle = "rgba(230, 255, 255, " + (0.38 + pulse * 0.2) + ")";
+    ctx.lineWidth = 5;
     ctx.beginPath();
-    ctx.moveTo(0, 0);
-    ctx.lineTo(920, 0);
-    ctx.stroke();
-    ctx.strokeStyle = "rgba(255, 255, 255, 0.92)";
-    ctx.lineWidth = Math.max(3, (boss.laserWidth || 18) * 0.42);
-    ctx.beginPath();
-    ctx.moveTo(0, 0);
-    ctx.lineTo(920, 0);
+    ctx.ellipse(-10, -8, 48 + pulse * 5, 78 + pulse * 7, 0, 0, Math.PI * 2);
     ctx.stroke();
     ctx.restore();
   }
@@ -3673,6 +3777,7 @@
   function drawEnemyBullets() {
     for (const ball of state.enemyBullets) {
       if (drawStageTwoBullet(ball)) continue;
+      if (drawMasumiBurstBullet(ball)) continue;
       const spin = state.elapsed * 10 + ball.x * 0.04 + ball.y * 0.02;
       ctx.fillStyle = "#d8fb4b";
       ctx.beginPath();
@@ -3707,6 +3812,47 @@
       ctx.arc(ball.x - ball.r * 0.3, ball.y - ball.r * 0.32, 2, 0, Math.PI * 2);
       ctx.fill();
     }
+  }
+
+  function drawMasumiBurstBullet(ball) {
+    if (ball.kind !== "masumiFragmentBurst") return false;
+    const angle = Math.atan2(ball.vy || 0, ball.vx || 1) + (ball.spin || 0) * 0.45;
+    ctx.save();
+    ctx.translate(ball.x, ball.y);
+    ctx.rotate(angle);
+    ctx.globalCompositeOperation = "lighter";
+    ctx.fillStyle = "rgba(255, 36, 48, 0.28)";
+    ctx.beginPath();
+    ctx.arc(0, 0, ball.r * 1.95, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalCompositeOperation = "source-over";
+    ctx.strokeStyle = "rgba(255, 230, 210, 0.95)";
+    ctx.lineWidth = 1.5;
+    for (let blade = 0; blade < 3; blade += 1) {
+      ctx.rotate(Math.PI * 2 / 3);
+      ctx.fillStyle = "#c91524";
+      ctx.beginPath();
+      ctx.moveTo(ball.r * 1.85, 0);
+      ctx.lineTo(-ball.r * 0.25, -ball.r * 0.72);
+      ctx.lineTo(-ball.r * 0.08, 0);
+      ctx.lineTo(-ball.r * 0.25, ball.r * 0.72);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = "#ff6a5f";
+      ctx.beginPath();
+      ctx.moveTo(ball.r * 1.35, -1.2);
+      ctx.lineTo(ball.r * 0.18, -ball.r * 0.22);
+      ctx.lineTo(ball.r * 0.18, ball.r * 0.08);
+      ctx.closePath();
+      ctx.fill();
+    }
+    ctx.fillStyle = "#3a0b14";
+    ctx.beginPath();
+    ctx.arc(0, 0, Math.max(2.2, ball.r * 0.35), 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+    return true;
   }
 
   function drawStageTwoBullet(ball) {
