@@ -1,4 +1,4 @@
-(function () {
+﻿(function () {
   "use strict";
 
   const titleScreen = document.getElementById("title-screen");
@@ -107,10 +107,9 @@
   const MASUMI_FRAGMENT_SPRITE_DRAW_WIDTH = 58;
   const MASUMI_FRAGMENT_SPRITE_DRAW_HEIGHT = 70;
   const MASUMI_MIDBOSS_HP_MULTIPLIER = 1.3;
-  const MASUMI_LASER_SINGLE_SWEEP_RADIANS = 286 * Math.PI / 180;
-  const MASUMI_LASER_DOUBLE_SWEEP_RADIANS = 238 * Math.PI / 180;
-  const MASUMI_LASER_START_ANGLE = Math.PI + 36 * Math.PI / 180;
-  const MASUMI_DOUBLE_LASER_SPREAD = 58 * Math.PI / 180;
+  const MASUMI_LASER_SINGLE_SWEEP_RADIANS = 168 * Math.PI / 180;
+  const MASUMI_LASER_DOUBLE_SWEEP_RADIANS = 138 * Math.PI / 180;
+  const MASUMI_DOUBLE_LASER_SPREAD = 78 * Math.PI / 180;
   const SAKUYA_BOSS_SPRITE_COLUMNS = 3;
   const SAKUYA_BOSS_SPRITE_ROWS = 5;
   const SAKUYA_BOSS_SPRITE_DRAW_SIZE = 232;
@@ -1047,6 +1046,10 @@
     boss.masumiSpinTimer = 0;
     boss.masumiRushIndex = 0;
     boss.masumiLaserCycle = 0;
+    boss.masumiLaserAimAngle = null;
+    boss.masumiLaserBulletTimer = 0;
+    boss.laserTelegraphActive = false;
+    boss.laserTelegraphAngles = [];
     boss.laserActive = false;
   }
 
@@ -1095,6 +1098,10 @@
     boss.masumiPhase = hpRatio <= 1 / 4 ? 4 : hpRatio <= 1 / 2 ? 3 : hpRatio <= 3 / 4 ? 2 : 1;
     if (boss.masumiPhase !== previousPhase) {
       boss.masumiLaserCycle = 0;
+      boss.masumiLaserAimAngle = null;
+      boss.masumiLaserBulletTimer = 0;
+      boss.laserTelegraphActive = false;
+      boss.laserTelegraphAngles = [];
       boss.laserSoundGate = false;
       boss.laserActive = false;
       if (!intense) {
@@ -1116,6 +1123,8 @@
   }
 
   function updateMasumiStraightPattern(boss, dt, intense) {
+    boss.laserTelegraphActive = false;
+    boss.laserTelegraphAngles = [];
     boss.laserActive = false;
     boss.masumiShotTimer -= dt;
     if (boss.masumiShotTimer > 0) return;
@@ -1129,6 +1138,8 @@
   }
 
   function updateMasumiRushPattern(boss, dt, intense) {
+    boss.laserTelegraphActive = false;
+    boss.laserTelegraphAngles = [];
     boss.laserActive = false;
     boss.masumiSpinTimer += dt;
     const spinSeconds = intense ? 0.55 : 1.15;
@@ -1164,25 +1175,97 @@
 
   function updateMasumiLaserPattern(boss, dt, intense, doubleLaser = false) {
     boss.masumiLaserCycle = (boss.masumiLaserCycle || 0) + dt;
-    const activeSeconds = doubleLaser ? (intense ? 4.25 : 4.6) : (intense ? 4.65 : 4.95);
-    const restSeconds = doubleLaser ? (intense ? 1.45 : 1.65) : (intense ? 1.55 : 1.85);
-    const cycleSeconds = activeSeconds + restSeconds;
-    if (boss.masumiLaserCycle >= cycleSeconds) boss.masumiLaserCycle -= cycleSeconds;
-    boss.laserActive = boss.masumiLaserCycle < activeSeconds;
-    const sweepProgress = clamp(boss.masumiLaserCycle / activeSeconds, 0, 1);
-    const sweep = doubleLaser ? MASUMI_LASER_DOUBLE_SWEEP_RADIANS : MASUMI_LASER_SINGLE_SWEEP_RADIANS;
-    const angle = MASUMI_LASER_START_ANGLE + sweepProgress * sweep;
-    boss.laserAngle = angle;
-    boss.laserAngles = doubleLaser
-      ? [angle - MASUMI_DOUBLE_LASER_SPREAD * 0.5, angle + MASUMI_DOUBLE_LASER_SPREAD * 0.5]
-      : [angle];
-    boss.laserWidth = doubleLaser ? (intense ? 16 : 13) : (intense ? 19 : 15);
+    const activeSeconds = doubleLaser ? (intense ? 4.15 : 4.45) : (intense ? 4.35 : 4.7);
+    const telegraphSeconds = activeSeconds / 8;
+    const restSeconds = doubleLaser ? (intense ? 1.35 : 1.55) : (intense ? 1.45 : 1.7);
+    const cycleSeconds = telegraphSeconds + activeSeconds + restSeconds;
+    if (boss.masumiLaserCycle >= cycleSeconds) {
+      boss.masumiLaserCycle -= cycleSeconds;
+      boss.masumiLaserAimAngle = null;
+      boss.masumiLaserBulletTimer = 0;
+    }
+    const cycle = boss.masumiLaserCycle;
+    boss.laserTelegraphActive = cycle < telegraphSeconds;
+    boss.laserActive = cycle >= telegraphSeconds && cycle < telegraphSeconds + activeSeconds;
+    if (boss.laserTelegraphActive || boss.laserActive) {
+      if (!Number.isFinite(boss.masumiLaserAimAngle)) {
+        boss.masumiLaserAimAngle = getMasumiLaserAimAngle(boss);
+        boss.masumiLaserBulletTimer = 0.18;
+      }
+      if (boss.laserTelegraphActive) {
+        const telegraphProgress = clamp(cycle / telegraphSeconds, 0, 1);
+        boss.laserTelegraphAngles = getMasumiLaserAnglesAtProgress(boss, telegraphProgress, doubleLaser);
+        boss.laserAngles = [];
+      } else {
+        const sweepProgress = clamp((cycle - telegraphSeconds) / activeSeconds, 0, 1);
+        boss.laserTelegraphAngles = [];
+        boss.laserAngles = getMasumiLaserAnglesAtProgress(boss, sweepProgress, doubleLaser);
+        boss.laserAngle = boss.laserAngles[0] || boss.masumiLaserAimAngle;
+        updateMasumiLaserPressureBullets(boss, dt, intense, doubleLaser);
+      }
+    } else {
+      boss.masumiLaserAimAngle = null;
+      boss.laserTelegraphAngles = [];
+      boss.laserAngles = [];
+    }
+    boss.laserWidth = doubleLaser ? (intense ? 15 : 12) : (intense ? 18 : 14);
     if (boss.laserActive && !boss.laserSoundGate) {
       boss.laserSoundGate = true;
       playShotSound("swordWave");
     }
     if (!boss.laserActive) boss.laserSoundGate = false;
-    for (const fragment of boss.fragments) fragment.mode = boss.laserActive ? "gather" : "home";
+    const gatheringLaser = boss.laserTelegraphActive || boss.laserActive;
+    for (const fragment of boss.fragments) fragment.mode = gatheringLaser ? "gather" : "home";
+  }
+
+  function getMasumiLaserAnglesAtProgress(boss, progress, doubleLaser) {
+    if (doubleLaser) {
+      const leftAngle = boss.masumiLaserAimAngle - MASUMI_DOUBLE_LASER_SPREAD + progress * MASUMI_LASER_DOUBLE_SWEEP_RADIANS;
+      const rightAngle = boss.masumiLaserAimAngle + MASUMI_DOUBLE_LASER_SPREAD - progress * MASUMI_LASER_DOUBLE_SWEEP_RADIANS;
+      return [leftAngle, rightAngle];
+    }
+    return [boss.masumiLaserAimAngle - MASUMI_LASER_SINGLE_SWEEP_RADIANS * 0.52 + progress * MASUMI_LASER_SINGLE_SWEEP_RADIANS];
+  }
+
+  function getMasumiLaserAimAngle(boss) {
+    const hand = getMasumiHandPoint(boss);
+    const target = playerHurtPoint();
+    return Math.atan2(target.y - hand.y, target.x - hand.x);
+  }
+
+  function updateMasumiLaserPressureBullets(boss, dt, intense, doubleLaser) {
+    boss.masumiLaserBulletTimer = (boss.masumiLaserBulletTimer || 0) - dt;
+    if (boss.masumiLaserBulletTimer > 0) return;
+    const hand = getMasumiHandPoint(boss);
+    if (doubleLaser) {
+      boss.masumiLaserBulletTimer = intense ? 0.24 : 0.3;
+      for (const angle of boss.laserAngles || []) {
+        shootMasumiFanBullets(hand, angle, 3, 42 * Math.PI / 180, intense ? 182 : 158, 6);
+      }
+      boss.masumiEightWayAngle = ((boss.masumiEightWayAngle || 0) - Math.PI / 18) % (Math.PI * 2);
+    } else {
+      boss.masumiLaserBulletTimer = intense ? 0.3 : 0.38;
+      const wobble = Math.sin((boss.masumiEightWayAngle || 0) * 2) * 18 * Math.PI / 180;
+      shootMasumiFanBullets(hand, boss.masumiLaserAimAngle + wobble, 5, 104 * Math.PI / 180, intense ? 168 : 145, 6.5);
+      boss.masumiEightWayAngle = ((boss.masumiEightWayAngle || 0) + Math.PI / 16) % (Math.PI * 2);
+    }
+  }
+
+  function shootMasumiFanBullets(origin, centerAngle, count, spread, speed, radius) {
+    const firstAngle = centerAngle - spread * 0.5;
+    const step = count <= 1 ? 0 : spread / (count - 1);
+    for (let index = 0; index < count; index += 1) {
+      const angle = firstAngle + step * index;
+      state.enemyBullets.push({
+        x: origin.x,
+        y: origin.y,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed,
+        kind: "masumiFragmentBurst",
+        spin: 0,
+        r: radius,
+      });
+    }
   }
 
   function getMasumiFragmentTarget(fragment) {
@@ -1275,6 +1358,10 @@
     boss.masumiEightWayAngle = 0;
     boss.masumiSpinTimer = 0;
     boss.masumiRushIndex = 0;
+    boss.masumiLaserAimAngle = null;
+    boss.masumiLaserBulletTimer = 0;
+    boss.laserTelegraphActive = false;
+    boss.laserTelegraphAngles = [];
     boss.laserActive = false;
   }
 
@@ -3546,43 +3633,73 @@
   }
 
   function drawMasumiLaserLocal(boss) {
-    if (!boss.laserActive) return;
+    const telegraphAngles = boss.laserTelegraphAngles && boss.laserTelegraphAngles.length ? boss.laserTelegraphAngles : [];
+    const angles = boss.laserAngles && boss.laserAngles.length ? boss.laserAngles : [];
+    if (!boss.laserActive && telegraphAngles.length === 0) return;
     const hand = getMasumiHandPoint(boss);
     const x = hand.x - boss.x;
     const y = hand.y - boss.y;
-    const angles = boss.laserAngles && boss.laserAngles.length ? boss.laserAngles : [boss.laserAngle || 0];
     const width = boss.laserWidth || 18;
     const pulse = 0.5 + Math.sin(state.elapsed * 22) * 0.5;
-    for (const angle of angles) {
-      ctx.save();
-      ctx.translate(x, y);
-      ctx.rotate(angle);
-      ctx.globalCompositeOperation = "lighter";
-      for (let layer = 0; layer < 4; layer += 1) {
-        ctx.filter = "blur(" + (8 + layer * 5) + "px)";
-        ctx.strokeStyle = layer % 2 === 0 ? "rgba(102, 242, 255, 0.24)" : "rgba(182, 133, 255, 0.16)";
-        ctx.lineWidth = width * (2.55 + layer * 1.12 + pulse * 0.22);
-        ctx.beginPath();
-        ctx.moveTo(0, 0);
-        ctx.lineTo(920, 0);
-        ctx.stroke();
-      }
-      ctx.filter = "blur(3px)";
-      ctx.strokeStyle = "rgba(182, 250, 255, 0.62)";
-      ctx.lineWidth = width * 1.02;
-      ctx.beginPath();
-      ctx.moveTo(0, 0);
-      ctx.lineTo(920, 0);
-      ctx.stroke();
-      ctx.filter = "blur(1px)";
-      ctx.strokeStyle = "rgba(255, 255, 255, 0.82)";
-      ctx.lineWidth = Math.max(3, width * 0.32);
-      ctx.beginPath();
-      ctx.moveTo(0, 0);
-      ctx.lineTo(920, 0);
-      ctx.stroke();
-      ctx.restore();
+    for (const angle of telegraphAngles) {
+      drawMasumiTelegraphLaserBeam(x, y, angle, width, pulse);
     }
+    for (const angle of angles) {
+      drawMasumiDamageLaserBeam(x, y, angle, width, pulse);
+    }
+  }
+
+  function drawMasumiTelegraphLaserBeam(x, y, angle, width, pulse) {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(angle);
+    ctx.globalCompositeOperation = "lighter";
+    ctx.filter = "blur(2px)";
+    ctx.strokeStyle = "rgba(255, 36, 48, " + (0.35 + pulse * 0.18) + ")";
+    ctx.lineWidth = Math.max(2, width * 0.22);
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.lineTo(920, 0);
+    ctx.stroke();
+    ctx.filter = "none";
+    ctx.strokeStyle = "rgba(255, 116, 92, 0.92)";
+    ctx.lineWidth = Math.max(1.5, width * 0.1);
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.lineTo(920, 0);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawMasumiDamageLaserBeam(x, y, angle, width, pulse) {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(angle);
+    ctx.globalCompositeOperation = "lighter";
+    for (let layer = 0; layer < 4; layer += 1) {
+      ctx.filter = "blur(" + (8 + layer * 5) + "px)";
+      ctx.strokeStyle = layer % 2 === 0 ? "rgba(102, 242, 255, 0.24)" : "rgba(182, 133, 255, 0.16)";
+      ctx.lineWidth = width * (2.55 + layer * 1.12 + pulse * 0.22);
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.lineTo(920, 0);
+      ctx.stroke();
+    }
+    ctx.filter = "blur(3px)";
+    ctx.strokeStyle = "rgba(182, 250, 255, 0.62)";
+    ctx.lineWidth = width * 1.02;
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.lineTo(920, 0);
+    ctx.stroke();
+    ctx.filter = "blur(1px)";
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.82)";
+    ctx.lineWidth = Math.max(3, width * 0.32);
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.lineTo(920, 0);
+    ctx.stroke();
+    ctx.restore();
   }
 
   function drawMasumiInvincibleAuraLocal(boss) {
