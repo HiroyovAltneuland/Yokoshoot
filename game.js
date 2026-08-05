@@ -20,6 +20,7 @@
   const leftPortrait = dialogueBox.querySelector(".portrait.protagonist img");
   const leftPortraitName = dialogueBox.querySelector(".portrait.protagonist span");
   const rightPortrait = document.getElementById("enemy-portrait");
+  const rightPortraitBack = document.getElementById("enemy-portrait-back");
   const rightPortraitName = dialogueBox.querySelector(".portrait.rival span");
   const mobileControls = document.getElementById("mobile-controls");
   const movePad = document.getElementById("move-pad");
@@ -112,7 +113,19 @@
   const MASUMI_DOUBLE_LASER_SPREAD = 78 * Math.PI / 180;
   const SAKUYA_BOSS_SPRITE_COLUMNS = 3;
   const SAKUYA_BOSS_SPRITE_ROWS = 5;
-  const SAKUYA_BOSS_SPRITE_DRAW_SIZE = 232;
+  const SAKUYA_BOSS_SPRITE_DRAW_HEIGHT = 232;
+  const SAKUYA_BOSS_SPRITE_DRAW_WIDTH = Math.round(SAKUYA_BOSS_SPRITE_DRAW_HEIGHT * (420 / 250));
+  const SAKUYA_COMMANDER_SPRITE_COLUMNS = 3;
+  const SAKUYA_COMMANDER_SPRITE_ROWS = 2;
+  const SAKUYA_COMMANDER_DRAW_WIDTH = 178;
+  const SAKUYA_COMMANDER_DRAW_HEIGHT = 132;
+  const SAKUYA_COMMANDER_CUE_SECONDS = 0.8;
+  const SAKUYA_FINAL_DURATION_SECONDS = 20;
+  const SAKUYA_FINAL_FLASH_FADE_SECONDS = 2;
+  const SAKUYA_FINAL_SECOND_KAGOME_REMAINING_SECONDS = 10;
+  const SAKUYA_FINAL_GOD_RAY_SECONDS = 7;
+  const SAKUYA_FINAL_WHITEOUT_SECONDS = 4;
+  const SAKUYA_KAGOME_BASE_ANGULAR_SPEED = 1.35;
   const RITSUKO_BOSS_SPRITE_DRAW_WIDTH = Math.round(BOSS_SPRITE_DRAW_SIZE * (576 / 512));
   const BOSS_SPRITE_FOOT_OFFSET_Y = Math.round(BOSS_SPRITE_DRAW_SIZE * 0.44);
   const ENEMY_SPRITE_COLUMNS = 3;
@@ -225,6 +238,7 @@
     masumiBossSprite,
     masumiBoundaryFragmentSprite,
     sakuyaBossSprite,
+    sakuyaCommanderSprite,
     stageOneEnemySprite,
     stageTwoEnemySprite,
     stageTwoReinforcementSprite,
@@ -491,6 +505,43 @@
   function clearDialoguePortraits() {
     clearDialoguePortrait(leftPortrait, leftPortraitName);
     clearDialoguePortrait(rightPortrait, rightPortraitName);
+    clearDialogueBackPortrait();
+  }
+
+  function getDialogueBackPortraitSrc(side, src) {
+    if (side !== "right") return "";
+    return src === "assets/dialogue-stage3-sakuya-boss.png" || src === "assets/dialogue-stage3-sakuya-damage.png"
+      ? "assets/dialogue-stage3-sakuya-female.png"
+      : "";
+  }
+
+  function clearDialogueBackPortrait() {
+    if (!rightPortraitBack) return;
+    rightPortraitBack.onload = null;
+    rightPortraitBack.style.opacity = "0";
+    rightPortraitBack.alt = "";
+    rightPortraitBack.dataset.currentSrc = "";
+    rightPortraitBack.removeAttribute("src");
+  }
+
+  function setDialogueBackPortrait(src, alt) {
+    if (!rightPortraitBack) return;
+    if (!src) {
+      clearDialogueBackPortrait();
+      return;
+    }
+    rightPortraitBack.alt = alt ? alt + " 女性側" : "";
+    if (rightPortraitBack.dataset.currentSrc === src) {
+      rightPortraitBack.style.opacity = "0.78";
+      return;
+    }
+    rightPortraitBack.dataset.currentSrc = src;
+    rightPortraitBack.style.opacity = "0";
+    rightPortraitBack.onload = () => {
+      rightPortraitBack.style.opacity = "0.78";
+    };
+    rightPortraitBack.src = src;
+    if (rightPortraitBack.complete && rightPortraitBack.naturalWidth > 0) rightPortraitBack.style.opacity = "0.78";
   }
 
   function clearDialoguePortrait(portrait, portraitName) {
@@ -504,6 +555,7 @@
     const portrait = side === "right" ? rightPortrait : leftPortrait;
     const portraitName = side === "right" ? rightPortraitName : leftPortraitName;
     if (!portrait) return;
+    if (side === "right") setDialogueBackPortrait(getDialogueBackPortraitSrc(side, src), alt);
     portrait.alt = alt;
     if (portraitName) portraitName.textContent = alt;
     if (portrait.dataset.currentSrc === src) {
@@ -943,6 +995,23 @@
     }
   }
 
+
+  function shootSakuyaKunaiEightWay(source, speed) {
+    playShotSound("enemyReturn");
+    for (let index = 0; index < 8; index += 1) {
+      const angle = (Math.PI * 2 * index) / 8;
+      state.enemyBullets.push({
+        x: source.x,
+        y: source.y - 20,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed,
+        kind: "sakuyaKunai",
+        spin: 0,
+        r: 6,
+      });
+    }
+  }
+
   function shootSpeechBubble(enemy) {
     playShotSound("enemyReturn");
     const direction = enemy.vx >= 0 ? 1 : -1;
@@ -1060,6 +1129,8 @@
     boss.sakuyaPhase = 0;
     boss.sakuyaSubTimer = 0.6;
     boss.sakuyaEightWayTimer = 1.0;
+    boss.sakuyaCommanderCue = 0;
+    boss.sakuyaPendingPhase = null;
     boss.finalTimer = 0;
     boss.blackHole = null;
   }
@@ -1324,18 +1395,17 @@
 
   function updateSakuyaBoss(boss, dt) {
     const nextPhase = getSakuyaPhaseIndex(boss);
-    if (nextPhase !== boss.sakuyaPhase) {
-      boss.sakuyaPhase = nextPhase;
-      boss.fireTimer = 0.2;
-      boss.sakuyaSubTimer = 0.45;
-      if (nextPhase === 3) initializeSakuyaMasumiPhase(boss);
-      state.message = [
-        "\u6714\u591c \u3064\u3070\u3081\u5f37\u5316",
-        "\u6714\u591c \u5f8b\u5b50\u5f37\u5316",
-        "\u6714\u591c \u5c0f\u591c\u5f37\u5316",
-        "\u6714\u591c \u771f\u6f84\u5f37\u5316",
-        "\u30d6\u30e9\u30c3\u30af\u30db\u30fc\u30eb \u8010\u3048\u308d",
-      ][nextPhase];
+    if (boss.sakuyaPendingPhase !== null) {
+      boss.sakuyaPendingPhase = Math.max(boss.sakuyaPendingPhase, nextPhase);
+      boss.sakuyaCommanderCue = Math.max(0, boss.sakuyaCommanderCue - dt);
+      if (boss.sakuyaCommanderCue <= 0) {
+        applySakuyaPhaseChange(boss, boss.sakuyaPendingPhase);
+        boss.sakuyaPendingPhase = null;
+      }
+    } else if (nextPhase !== boss.sakuyaPhase) {
+      boss.sakuyaPendingPhase = nextPhase;
+      boss.sakuyaCommanderCue = SAKUYA_COMMANDER_CUE_SECONDS;
+      state.message = "指示者 朔夜に命じる";
     }
     boss.changed = boss.sakuyaPhase > 0;
     if (boss.sakuyaPhase === 0) updateSakuyaTsubamePhase(boss, dt);
@@ -1349,6 +1419,21 @@
     } else {
       updateSakuyaBlackHolePhase(boss, dt);
     }
+  }
+
+  function applySakuyaPhaseChange(boss, nextPhase) {
+    if (nextPhase === boss.sakuyaPhase) return;
+    boss.sakuyaPhase = nextPhase;
+    boss.fireTimer = 0.2;
+    boss.sakuyaSubTimer = 0.45;
+    if (nextPhase === 3) initializeSakuyaMasumiPhase(boss);
+    state.message = [
+      "朔夜 つばめ強化",
+      "朔夜 律子強化",
+      "朔夜 小夜強化",
+      "朔夜 真澄強化",
+      "ブラックホール 耐えろ",
+    ][nextPhase];
   }
 
   function initializeSakuyaMasumiPhase(boss) {
@@ -1380,7 +1465,7 @@
     boss.fireTimer = 0.58;
     playShotSound("bossSmash");
     for (const angle of [-0.48, -0.32, -0.16, 0, 0.16, 0.32, 0.48]) {
-      pushPatternBullet(boss, { speed: 350, radius: 8, originX: -44, kind: "sakuyaTsubame" }, Math.PI + angle);
+      pushPatternBullet(boss, { speed: 350, radius: 6, originX: -44, kind: "sakuyaKunai" }, Math.PI + angle);
     }
   }
 
@@ -1391,12 +1476,12 @@
       boss.fireTimer = 0.48;
       playShotSound("schoolTool");
       for (const [index, offset] of [-0.34, -0.17, 0, 0.17, 0.34].entries()) {
-        pushAimedBullet(boss, 310 + index * 18, offset, ["pencil", "compass", "ruler", "compass", "pencil"][index], 8);
+        pushAimedBullet(boss, 310 + index * 18, offset, index === 2 ? "sakuyaEnergy" : "sakuyaKunai", index === 2 ? 11 : 6);
       }
     }
     if (boss.sakuyaEightWayTimer <= 0) {
       boss.sakuyaEightWayTimer = 1.15;
-      shootReinforcementEightWay({ x: boss.x - 10, y: boss.y + 42 }, 250);
+      shootSakuyaKunaiEightWay({ x: boss.x - 10, y: boss.y + 42 }, 250);
     }
   }
 
@@ -1405,27 +1490,92 @@
     boss.sakuyaSubTimer -= dt;
     if (boss.fireTimer <= 0) {
       boss.fireTimer = 0.7;
-      executeBulletPattern(boss, "sayoShockwave");
+      executeSakuyaEnergyPattern(boss, "sayoShockwave");
     }
     if (boss.sakuyaSubTimer <= 0) {
       boss.sakuyaSubTimer = 1.45;
-      executeBulletPattern({ x: boss.x - 30, y: boss.y - 16 }, "sayoIdleRadial");
+      executeSakuyaKunaiPattern({ x: boss.x - 30, y: boss.y - 16 }, "sayoIdleRadial");
     }
   }
 
   function updateSakuyaBlackHolePhase(boss, dt) {
     boss.invincible = true;
-    boss.finalTimer = (boss.finalTimer || 0) + dt;
     boss.fragments = null;
-    boss.blackHole = { x: boss.x - 78, y: boss.y - 10, r: 58, pullRadius: 255 };
+    boss.blackHole = { x: boss.x - 96, y: boss.y - 10, r: 62, pullRadius: 445 };
+    if (boss.finalCleared) {
+      boss.finalFlashTimer = (boss.finalFlashTimer || 0) + dt;
+      if (boss.finalFlashTimer >= SAKUYA_FINAL_FLASH_FADE_SECONDS) {
+        boss.invincible = false;
+        defeatBoss();
+      }
+      return;
+    }
+    boss.finalTimer = Math.min(SAKUYA_FINAL_DURATION_SECONDS, (boss.finalTimer || 0) + dt);
     state.knives = state.knives.filter((knife) => distance(knife, boss.blackHole) > boss.blackHole.pullRadius * 0.84);
     if (state.tachiProjectile && distance(state.tachiProjectile, boss.blackHole) < boss.blackHole.pullRadius * 0.72) state.tachiProjectile.dead = true;
+    updateSakuyaKagomeBullets(boss, dt);
     applyBlackHolePull(boss.blackHole, dt);
-    if (boss.finalTimer >= 20 && !boss.finalCleared) {
+    if (boss.finalTimer >= SAKUYA_FINAL_DURATION_SECONDS) {
       boss.finalCleared = true;
-      boss.invincible = false;
-      defeatBoss();
+      boss.finalFlashTimer = 0;
+      state.enemyBullets = state.enemyBullets.filter((ball) => ball.kind !== "sakuyaKagome");
     }
+  }
+
+  function updateSakuyaKagomeBullets(boss, dt) {
+    boss.kagomeTimer = (boss.kagomeTimer || 0) - dt;
+    boss.kagomeSpin = (boss.kagomeSpin || 0) + dt * getSakuyaKagomeAngularSpeed(boss);
+    if (boss.kagomeTimer > 0) return;
+    boss.kagomeTimer = 0.68;
+    const hole = boss.blackHole;
+    const baseRadius = getSakuyaKagomeStartRadius(hole);
+    const remaining = getSakuyaFinalRemainingSeconds(boss);
+    const groupCount = remaining <= SAKUYA_FINAL_SECOND_KAGOME_REMAINING_SECONDS ? 2 : 1;
+    const angularSpeed = getSakuyaKagomeAngularSpeed(boss);
+    for (let group = 0; group < groupCount; group += 1) {
+      const groupOffset = group * Math.PI / 3;
+      for (let index = 0; index < 3; index += 1) {
+        const angle = boss.kagomeSpin + groupOffset + index * Math.PI * 2 / 3;
+        state.enemyBullets.push({
+          x: hole.x + Math.cos(angle) * baseRadius,
+          y: hole.y + Math.sin(angle) * baseRadius,
+          vx: 0,
+          vy: 0,
+          kind: "sakuyaKagome",
+          orbitAngle: angle,
+          orbitRadius: baseRadius + group * 36,
+          orbitSpin: group === 0 ? 1 : -1,
+          kagomeVariant: (group * 3 + index) % 4,
+          radialSpeed: 94,
+          angularSpeed: angularSpeed + group * 0.22,
+          spin: 0,
+          r: 7,
+        });
+      }
+    }
+  }
+
+  function getSakuyaFinalRemainingSeconds(boss) {
+    return Math.max(0, SAKUYA_FINAL_DURATION_SECONDS - (boss.finalTimer || 0));
+  }
+
+  function getSakuyaKagomeAngularSpeed(boss) {
+    const elapsed = clamp(boss.finalTimer || 0, 0, SAKUYA_FINAL_DURATION_SECONDS);
+    const halfway = SAKUYA_FINAL_DURATION_SECONDS - SAKUYA_FINAL_SECOND_KAGOME_REMAINING_SECONDS;
+    const factor = elapsed <= halfway
+      ? lerp(0.5, 0.7, elapsed / halfway)
+      : lerp(0.7, 1, (elapsed - halfway) / Math.max(1, SAKUYA_FINAL_DURATION_SECONDS - halfway));
+    return SAKUYA_KAGOME_BASE_ANGULAR_SPEED * factor;
+  }
+
+  function getSakuyaKagomeStartRadius(hole) {
+    const margin = 96;
+    return Math.max(
+      Math.hypot(hole.x, hole.y),
+      Math.hypot(WIDTH - hole.x, hole.y),
+      Math.hypot(hole.x, HEIGHT - hole.y),
+      Math.hypot(WIDTH - hole.x, HEIGHT - hole.y)
+    ) + margin;
   }
 
   function applyBlackHolePull(hole, dt) {
@@ -1434,10 +1584,15 @@
     const dx = hole.x - hurtPoint.x;
     const dy = hole.y - hurtPoint.y;
     const dist = Math.hypot(dx, dy) || 1;
-    if (dist > hole.pullRadius) return;
-    const strength = (1 - dist / hole.pullRadius) * 250 + 45;
-    state.player.x = clamp(state.player.x + (dx / dist) * strength * dt, 34, WIDTH * 0.48);
-    state.player.y = clampHumanoidY(state.player.y + (dy / dist) * strength * dt);
+    const pullRatio = clamp(1 - dist / hole.pullRadius, 0, 1);
+    const strength = (210 + pullRatio * 105) * 1.8;
+    const maxPulledX = Math.min(WIDTH * 0.72, hole.x - hole.r * 0.35);
+    state.player.x = clamp(state.player.x + (dx / dist) * strength * dt, 34, maxPulledX);
+    state.player.y = clamp(
+      state.player.y + (dy / dist) * strength * dt,
+      Math.max(HUMANOID_MIN_Y, PLAYER_SPRITE_TOP_EXTENT),
+      Math.min(HUMANOID_MAX_Y, HEIGHT - PLAYER_SPRITE_BOTTOM_EXTENT)
+    );
   }
 
   function damageStageThreeBoss() {
@@ -1860,14 +2015,26 @@
   }
 
   function updateEnemyBullets(dt) {
+    const blackHole = state.boss && state.boss.blackHole;
     for (const ball of state.enemyBullets) {
+      if (ball.kind === "sakuyaKagome" && blackHole) {
+        ball.orbitRadius -= (ball.radialSpeed || 90) * dt;
+        ball.orbitAngle += (ball.angularSpeed || 1.25) * (ball.orbitSpin || 1) * dt;
+        ball.spin = (ball.spin || 0) + dt * 12;
+        ball.x = blackHole.x + Math.cos(ball.orbitAngle) * ball.orbitRadius;
+        ball.y = blackHole.y + Math.sin(ball.orbitAngle) * ball.orbitRadius;
+        if (ball.orbitRadius < blackHole.r * 0.55) ball.dead = true;
+        continue;
+      }
       ball.vy += (ball.gravity || 0) * dt;
       ball.spin = (ball.spin || 0) + dt * 9;
       ball.x += ball.vx * dt;
       ball.y += ball.vy * dt;
     }
     state.enemyBullets = state.enemyBullets.filter((ball) => (
-      ball.x > -40 && ball.x < WIDTH + 40 && ball.y > -40 && ball.y < HEIGHT + 40
+      ball.kind === "sakuyaKagome"
+        ? !ball.dead
+        : ball.x > -40 && ball.x < WIDTH + 40 && ball.y > -40 && ball.y < HEIGHT + 40
     ));
   }
 
@@ -1896,7 +2063,7 @@
       damagePlayer();
       return true;
     }
-    if (boss.blackHole && distance(boss.blackHole, hurtPoint) < boss.blackHole.r + PLAYER_HURT_RADIUS) {
+    if (boss.blackHole && !boss.finalCleared && distance(boss.blackHole, hurtPoint) < boss.blackHole.r + PLAYER_HURT_RADIUS) {
       damagePlayer();
       return true;
     }
@@ -2329,6 +2496,51 @@
     }
   }
 
+  function executeSakuyaEnergyPattern(source, patternName) {
+    const pattern = (bulletPatterns && bulletPatterns[patternName]) || BUILTIN_BULLET_PATTERNS[patternName];
+    if (!pattern) throw new Error(`Unknown bullet pattern: ${patternName}`);
+    if (pattern.sound) playShotSound(pattern.sound);
+    for (const action of pattern.actions) {
+      const energyAction = { ...action, kind: "sakuyaEnergy", radius: Math.max(11, action.radius || 8) };
+      if (action.fire === "aimed") {
+        pushPatternAimedBullet(source, energyAction, 0);
+      } else if (action.fire === "aimedSpread") {
+        for (const angleOffset of action.angleOffsets) {
+          pushPatternAimedBullet(source, energyAction, angleOffset);
+        }
+      } else if (action.fire === "radial") {
+        for (let index = 0; index < action.count; index += 1) {
+          const angle = (Math.PI * 2 * index) / action.count;
+          pushPatternBullet(source, energyAction, angle);
+        }
+      }
+      if (action.retreat) source.vx = action.retreat.speed;
+      if (action.finish) Object.assign(source, action.finish);
+    }
+  }
+  function executeSakuyaKunaiPattern(source, patternName) {
+    const pattern = (bulletPatterns && bulletPatterns[patternName]) || BUILTIN_BULLET_PATTERNS[patternName];
+    if (!pattern) throw new Error(`Unknown bullet pattern: ${patternName}`);
+    if (pattern.sound) playShotSound(pattern.sound);
+    for (const action of pattern.actions) {
+      const kunaiAction = { ...action, kind: "sakuyaKunai", radius: 6 };
+      if (action.fire === "aimed") {
+        pushPatternAimedBullet(source, kunaiAction, 0);
+      } else if (action.fire === "aimedSpread") {
+        for (const angleOffset of action.angleOffsets) {
+          pushPatternAimedBullet(source, kunaiAction, angleOffset);
+        }
+      } else if (action.fire === "radial") {
+        for (let index = 0; index < action.count; index += 1) {
+          const angle = (Math.PI * 2 * index) / action.count;
+          pushPatternBullet(source, kunaiAction, angle);
+        }
+      }
+      if (action.retreat) source.vx = action.retreat.speed;
+      if (action.finish) Object.assign(source, action.finish);
+    }
+  }
+
   function pushPatternAimedBullet(source, action, angleOffset) {
     const angle = Math.atan2(state.player.y - source.y, state.player.x - source.x) + angleOffset;
     pushPatternBullet(source, action, angle);
@@ -2493,6 +2705,7 @@
     ctx.restore();
     drawBlackHoleCountdown();
     drawOverlayMessage();
+    drawSakuyaFinalWhiteout();
   }
 
   function getStageThreeScreenShake() {
@@ -3487,6 +3700,8 @@
       return true;
     }
     drawSakuyaBlackHoleLocal(boss);
+    drawSakuyaCommanderLocal(boss);
+    drawSakuyaFinalGodRaysLocal(boss);
     if (drawSakuyaBossSprite(boss)) return true;
     drawSakuyaFallback(boss);
     return true;
@@ -3524,11 +3739,42 @@
       row * sourceHeight,
       sourceWidth,
       sourceHeight,
-      -SAKUYA_BOSS_SPRITE_DRAW_SIZE * 0.52,
-      -SAKUYA_BOSS_SPRITE_DRAW_SIZE * 0.58,
-      SAKUYA_BOSS_SPRITE_DRAW_SIZE,
-      SAKUYA_BOSS_SPRITE_DRAW_SIZE
+      -SAKUYA_BOSS_SPRITE_DRAW_WIDTH * 0.52,
+      -SAKUYA_BOSS_SPRITE_DRAW_HEIGHT * 0.58,
+      SAKUYA_BOSS_SPRITE_DRAW_WIDTH,
+      SAKUYA_BOSS_SPRITE_DRAW_HEIGHT
     );
+    return true;
+  }
+
+  function getSakuyaCommanderFixedOffset(boss) {
+    const fixedY = Math.round(HEIGHT * 0.78);
+    return fixedY - boss.y;
+  }
+
+  function drawSakuyaCommanderLocal(boss) {
+    if (!sakuyaCommanderSprite.complete || sakuyaCommanderSprite.naturalWidth === 0) return false;
+    const sourceWidth = sakuyaCommanderSprite.naturalWidth / SAKUYA_COMMANDER_SPRITE_COLUMNS;
+    const sourceHeight = sakuyaCommanderSprite.naturalHeight / SAKUYA_COMMANDER_SPRITE_ROWS;
+    const isCommanding = (boss.sakuyaCommanderCue || 0) > 0;
+    const frameRate = isCommanding ? 10 : 4;
+    const frame = Math.floor(state.elapsed * frameRate) % SAKUYA_COMMANDER_SPRITE_COLUMNS;
+    const row = isCommanding ? 1 : 0;
+    const fixedY = getSakuyaCommanderFixedOffset(boss);
+    ctx.save();
+    ctx.globalAlpha = isCommanding ? 0.96 : 0.84;
+    ctx.drawImage(
+      sakuyaCommanderSprite,
+      frame * sourceWidth,
+      row * sourceHeight,
+      sourceWidth,
+      sourceHeight,
+      23,
+      fixedY - SAKUYA_COMMANDER_DRAW_HEIGHT * 0.56,
+      SAKUYA_COMMANDER_DRAW_WIDTH,
+      SAKUYA_COMMANDER_DRAW_HEIGHT
+    );
+    ctx.restore();
     return true;
   }
 
@@ -3728,6 +3974,74 @@
     ctx.restore();
   }
 
+  function getSakuyaFinalWhiteoutAlpha(boss) {
+    if (!boss || boss.kind !== "sakuya" || boss.sakuyaPhase !== 4) return 0;
+    if (boss.finalCleared) return clamp(1 - (boss.finalFlashTimer || 0) / SAKUYA_FINAL_FLASH_FADE_SECONDS, 0, 1);
+    const remaining = getSakuyaFinalRemainingSeconds(boss);
+    if (remaining > SAKUYA_FINAL_WHITEOUT_SECONDS) return 0;
+    return clamp(1 - remaining / SAKUYA_FINAL_WHITEOUT_SECONDS, 0, 1);
+  }
+
+  function drawSakuyaFinalWhiteout() {
+    const boss = state.boss;
+    const alpha = getSakuyaFinalWhiteoutAlpha(boss);
+    if (alpha <= 0) return;
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, WIDTH, HEIGHT);
+    if (alpha < 0.98) {
+      ctx.globalCompositeOperation = "lighter";
+      ctx.globalAlpha = alpha * 0.42;
+      const gradient = ctx.createRadialGradient(WIDTH * 0.62, HEIGHT * 0.45, 20, WIDTH * 0.62, HEIGHT * 0.45, WIDTH * 0.72);
+      gradient.addColorStop(0, "rgba(230, 204, 255, 0.92)");
+      gradient.addColorStop(0.5, "rgba(255, 255, 255, 0.55)");
+      gradient.addColorStop(1, "rgba(255, 255, 255, 0)");
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, WIDTH, HEIGHT);
+    }
+    ctx.restore();
+  }
+
+  function drawSakuyaFinalGodRaysLocal(boss) {
+    if (!(boss.kind === "sakuya" && boss.sakuyaPhase === 4)) return;
+    const remaining = getSakuyaFinalRemainingSeconds(boss);
+    const progress = boss.finalCleared ? 1 : clamp(1 - remaining / SAKUYA_FINAL_GOD_RAY_SECONDS, 0, 1);
+    if (progress <= 0) return;
+    const pulse = 0.75 + Math.sin(state.elapsed * 7) * 0.25;
+    ctx.save();
+    ctx.globalCompositeOperation = "lighter";
+    ctx.globalAlpha = progress * (0.28 + pulse * 0.18);
+    const originX = -34;
+    const originY = -48;
+    for (let index = 0; index < 9; index += 1) {
+      const angle = -Math.PI * 0.92 + index * (Math.PI * 1.05 / 8) + Math.sin(state.elapsed * 1.6 + index) * 0.035;
+      const length = 420 + progress * 260 + (index % 3) * 48;
+      const width = 8 + progress * 22 + (index % 2) * 7;
+      const endX = originX + Math.cos(angle) * length;
+      const endY = originY + Math.sin(angle) * length;
+      const gradient = ctx.createLinearGradient(originX, originY, endX, endY);
+      gradient.addColorStop(0, "rgba(255, 255, 255, 0.88)");
+      gradient.addColorStop(0.28, "rgba(219, 178, 255, 0.46)");
+      gradient.addColorStop(1, "rgba(255, 255, 255, 0)");
+      ctx.strokeStyle = gradient;
+      ctx.lineWidth = width;
+      ctx.beginPath();
+      ctx.moveTo(originX, originY);
+      ctx.lineTo(endX, endY);
+      ctx.stroke();
+    }
+    ctx.globalAlpha = progress * 0.52;
+    const aura = ctx.createRadialGradient(-22, -42, 8, -22, -42, 160 + progress * 80);
+    aura.addColorStop(0, "rgba(255, 255, 255, 0.88)");
+    aura.addColorStop(0.42, "rgba(194, 125, 255, 0.34)");
+    aura.addColorStop(1, "rgba(255, 255, 255, 0)");
+    ctx.fillStyle = aura;
+    ctx.beginPath();
+    ctx.arc(-22, -42, 160 + progress * 80, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
   function drawSakuyaBlackHoleLocal(boss) {
     if (!boss.blackHole) return;
     const x = boss.blackHole.x - boss.x;
@@ -3755,7 +4069,7 @@
   function drawBlackHoleCountdown() {
     const boss = state.boss;
     if (state.stage !== 3 || !boss || boss.kind !== "sakuya" || boss.sakuyaPhase !== 4) return;
-    const remaining = Math.max(0, Math.ceil(20 - (boss.finalTimer || 0)));
+    const remaining = Math.max(0, Math.ceil(SAKUYA_FINAL_DURATION_SECONDS - (boss.finalTimer || 0)));
     ctx.save();
     ctx.font = "bold 24px system-ui, sans-serif";
     ctx.textAlign = "center";
@@ -3894,6 +4208,9 @@
   function drawEnemyBullets() {
     for (const ball of state.enemyBullets) {
       if (drawStageTwoBullet(ball)) continue;
+      if (drawSakuyaKagomeBullet(ball)) continue;
+      if (drawSakuyaEnergyBullet(ball)) continue;
+      if (drawSakuyaKunaiBullet(ball)) continue;
       if (drawMasumiBurstBullet(ball)) continue;
       const spin = state.elapsed * 10 + ball.x * 0.04 + ball.y * 0.02;
       ctx.fillStyle = "#d8fb4b";
@@ -3929,6 +4246,214 @@
       ctx.arc(ball.x - ball.r * 0.3, ball.y - ball.r * 0.32, 2, 0, Math.PI * 2);
       ctx.fill();
     }
+  }
+
+  function drawSakuyaEnergyBullet(ball) {
+    if (ball.kind !== "sakuyaEnergy") return false;
+    const pulse = 0.5 + Math.sin(state.elapsed * 18 + ball.x * 0.04 + ball.y * 0.03) * 0.5;
+    const angle = Math.atan2(ball.vy || 0, ball.vx || -1);
+    ctx.save();
+    ctx.translate(ball.x, ball.y);
+    ctx.rotate(angle + (ball.spin || 0) * 0.35);
+    ctx.globalCompositeOperation = "lighter";
+    const halo = ctx.createRadialGradient(0, 0, ball.r * 0.2, 0, 0, ball.r * (2.5 + pulse * 0.3));
+    halo.addColorStop(0, "rgba(255, 245, 255, 0.9)");
+    halo.addColorStop(0.38, "rgba(236, 78, 128, 0.55)");
+    halo.addColorStop(1, "rgba(126, 30, 206, 0)");
+    ctx.fillStyle = halo;
+    ctx.beginPath();
+    ctx.arc(0, 0, ball.r * (2.4 + pulse * 0.25), 0, Math.PI * 2);
+    ctx.fill();
+    ctx.filter = "blur(2px)";
+    ctx.fillStyle = "rgba(255, 82, 120, 0.48)";
+    ctx.beginPath();
+    ctx.ellipse(0, 0, ball.r * 1.7, ball.r * 1.08, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.filter = "none";
+    ctx.globalCompositeOperation = "source-over";
+    ctx.fillStyle = "#f8d7ff";
+    ctx.strokeStyle = "rgba(86, 18, 112, 0.85)";
+    ctx.lineWidth = 1.4;
+    ctx.beginPath();
+    ctx.arc(0, 0, ball.r * 0.82, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = "#9e1d58";
+    ctx.beginPath();
+    ctx.arc(-ball.r * 0.22, -ball.r * 0.2, ball.r * 0.32, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+    return true;
+  }
+  function drawSakuyaKunaiBullet(ball) {
+    if (ball.kind !== "sakuyaKunai") return false;
+    const angle = Math.atan2(ball.vy || 0, ball.vx || -1);
+    const pulse = 0.5 + Math.sin(state.elapsed * 16 + ball.x * 0.03) * 0.5;
+    ctx.save();
+    ctx.translate(ball.x, ball.y);
+    ctx.rotate(angle);
+    ctx.globalCompositeOperation = "lighter";
+    ctx.filter = "blur(3px)";
+    ctx.fillStyle = "rgba(168, 28, 58, " + (0.22 + pulse * 0.12) + ")";
+    ctx.beginPath();
+    ctx.moveTo(ball.r * 2.2, 0);
+    ctx.lineTo(-ball.r * 1.2, -ball.r * 0.9);
+    ctx.lineTo(-ball.r * 0.6, 0);
+    ctx.lineTo(-ball.r * 1.2, ball.r * 0.9);
+    ctx.closePath();
+    ctx.fill();
+    ctx.filter = "none";
+    ctx.globalCompositeOperation = "source-over";
+    ctx.fillStyle = "#25131a";
+    ctx.strokeStyle = "rgba(255, 210, 220, 0.86)";
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.moveTo(ball.r * 2.05, 0);
+    ctx.lineTo(-ball.r * 0.55, -ball.r * 0.55);
+    ctx.lineTo(-ball.r * 0.18, 0);
+    ctx.lineTo(-ball.r * 0.55, ball.r * 0.55);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = "#9e1d36";
+    ctx.fillRect(-ball.r * 1.2, -ball.r * 0.24, ball.r * 0.8, ball.r * 0.48);
+    ctx.strokeStyle = "rgba(40, 10, 18, 0.85)";
+    ctx.strokeRect(-ball.r * 1.2, -ball.r * 0.24, ball.r * 0.8, ball.r * 0.48);
+    ctx.restore();
+    return true;
+  }
+
+  function drawSakuyaKagomeBullet(ball) {
+    if (ball.kind !== "sakuyaKagome") return false;
+    const spin = (ball.spin || 0) + (ball.orbitAngle || 0);
+    const pulse = 0.5 + Math.sin(state.elapsed * 14 + ball.orbitAngle) * 0.5;
+    const variant = ball.kagomeVariant || 0;
+    const outline = getSakuyaKagomeCrossSectionPoints(ball.r, variant);
+    ctx.save();
+    ctx.translate(ball.x, ball.y);
+    ctx.rotate(spin);
+    ctx.globalCompositeOperation = "lighter";
+
+    const glow = ctx.createRadialGradient(0, 0, ball.r * 0.2, 0, 0, ball.r * 2.25);
+    glow.addColorStop(0, "rgba(255, 255, 255, 0.68)");
+    glow.addColorStop(0.48, "rgba(170, 90, 255, 0.26)");
+    glow.addColorStop(1, "rgba(70, 0, 120, 0)");
+    ctx.fillStyle = glow;
+    ctx.beginPath();
+    ctx.arc(0, 0, ball.r * (2.0 + pulse * 0.15), 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.globalCompositeOperation = "source-over";
+    ctx.fillStyle = "rgba(218, 229, 235, 0.9)";
+    ctx.strokeStyle = "rgba(35, 29, 44, 0.88)";
+    ctx.lineWidth = 1.1;
+    drawClosedPolygon(outline);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.76)";
+    ctx.lineWidth = 0.8;
+    drawSakuyaKagomeRidges(ball.r, variant);
+
+    ctx.strokeStyle = "rgba(83, 161, 190, 0.5)";
+    ctx.lineWidth = 0.65;
+    const grainCount = 3 + variant;
+    for (let grain = 0; grain < grainCount; grain += 1) {
+      const offset = (grain - (grainCount - 1) / 2) * ball.r * 0.26;
+      const wave = Math.sin(state.elapsed * 2 + grain + variant) * ball.r * 0.08;
+      ctx.beginPath();
+      ctx.moveTo(offset + wave, -ball.r * 1.0);
+      ctx.lineTo(offset * 0.65 - wave, ball.r * 0.75);
+      ctx.stroke();
+    }
+
+    ctx.fillStyle = "rgba(255, 255, 255, 0.55)";
+    ctx.beginPath();
+    ctx.ellipse(-ball.r * 0.22, -ball.r * 0.56, ball.r * 0.13, ball.r * 0.36, -0.18, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+    return true;
+  }
+
+  function getSakuyaKagomeCrossSectionPoints(radius, variant) {
+    const top = -radius * 1.72;
+    const bottom = radius * 1.72;
+    if (variant === 1) {
+      return [
+        { x: 0, y: top },
+        { x: radius * 0.82, y: -radius * 0.66 },
+        { x: radius * 0.66, y: radius * 0.52 },
+        { x: 0, y: bottom },
+        { x: -radius * 0.66, y: radius * 0.52 },
+        { x: -radius * 0.82, y: -radius * 0.66 },
+      ];
+    }
+    if (variant === 2) {
+      return [
+        { x: 0, y: top },
+        { x: radius * 0.74, y: -radius * 0.92 },
+        { x: radius * 0.56, y: radius * 0.84 },
+        { x: 0, y: bottom },
+        { x: -radius * 0.56, y: radius * 0.84 },
+        { x: -radius * 0.74, y: -radius * 0.92 },
+      ];
+    }
+    if (variant === 3) {
+      return [
+        { x: 0, y: top },
+        { x: radius * 0.68, y: -radius * 1.0 },
+        { x: radius * 0.84, y: -radius * 0.2 },
+        { x: radius * 0.38, y: radius * 0.82 },
+        { x: 0, y: bottom },
+        { x: -radius * 0.38, y: radius * 0.82 },
+        { x: -radius * 0.84, y: -radius * 0.2 },
+        { x: -radius * 0.68, y: -radius * 1.0 },
+      ];
+    }
+    return [
+      { x: 0, y: top },
+      { x: radius * 0.7, y: -radius * 0.72 },
+      { x: radius * 0.34, y: radius * 0.22 },
+      { x: radius * 0.58, y: radius * 0.88 },
+      { x: 0, y: bottom },
+      { x: -radius * 0.58, y: radius * 0.88 },
+      { x: -radius * 0.34, y: radius * 0.22 },
+      { x: -radius * 0.7, y: -radius * 0.72 },
+    ];
+  }
+
+  function drawClosedPolygon(points) {
+    ctx.beginPath();
+    points.forEach((point, index) => {
+      if (index === 0) ctx.moveTo(point.x, point.y);
+      else ctx.lineTo(point.x, point.y);
+    });
+    ctx.closePath();
+  }
+
+  function drawSakuyaKagomeRidges(radius, variant) {
+    const ridgeTop = -radius * 1.35;
+    const ridgeBottom = radius * 1.18;
+    ctx.beginPath();
+    ctx.moveTo(0, ridgeTop);
+    ctx.lineTo(0, ridgeBottom);
+    ctx.moveTo(0, ridgeTop);
+    ctx.lineTo(radius * 0.46, -radius * 0.24);
+    ctx.moveTo(0, ridgeTop);
+    ctx.lineTo(-radius * 0.46, -radius * 0.24);
+    ctx.moveTo(0, ridgeBottom);
+    ctx.lineTo(radius * 0.38, radius * 0.28);
+    ctx.moveTo(0, ridgeBottom);
+    ctx.lineTo(-radius * 0.38, radius * 0.28);
+    if (variant === 1 || variant === 3) {
+      ctx.moveTo(-radius * 0.54, -radius * 0.74);
+      ctx.lineTo(radius * 0.54, -radius * 0.74);
+    }
+    if (variant >= 2) {
+      ctx.moveTo(-radius * 0.34, radius * 0.72);
+      ctx.lineTo(radius * 0.34, radius * 0.72);
+    }
+    ctx.stroke();
   }
 
   function drawMasumiBurstBullet(ball) {

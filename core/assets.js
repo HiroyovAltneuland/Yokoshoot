@@ -9,6 +9,7 @@
     masumiBossSprite: "assets/masumi-midboss-sprite-sheet.png",
     masumiBoundaryFragmentSprite: "assets/masumi-boundary-fragment-sprite-sheet.png",
     sakuyaBossSprite: "assets/sakuya-boss-sprite-sheet.png",
+    sakuyaCommanderSprite: "assets/sakuya-commander-sprite-sheet.png",
     stageOneEnemySprite: "assets/stage1-enemy-sprite-sheet.png",
     stageTwoEnemySprite: "assets/stage2-enemy-sprite-sheet.png",
     stageTwoReinforcementSprite: "assets/stage2-reinforcement-sprite-sheet.png",
